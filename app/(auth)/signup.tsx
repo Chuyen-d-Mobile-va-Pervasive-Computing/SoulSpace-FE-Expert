@@ -38,7 +38,7 @@ export default function RegisterScreen() {
   const handleRegister = () => {
     // TẠM THỜI CHƯA CÓ API ⇒ CHỈ LOG THÔNG TIN
     console.log("Register info:", { email, password });
-    router.replace("/(auth)/login");
+    router.replace("/(auth)/information");
   };
 
   return (
@@ -91,6 +91,30 @@ export default function RegisterScreen() {
           <View className="mb-4">
             <Text className="text-gray-500 text-sm mb-1 font-[Poppins-Regular]">
               Password
+            </Text>
+            <View className="w-full h-16 bg-transparent px-4 flex-row items-center border border-[#DADADA] rounded-[10px]">
+              <TextInput
+                placeholder="Enter your password"
+                placeholderTextColor="#ccc"
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+                className="flex-1 font-[Poppins-Regular]"
+              />
+              <Pressable onPress={() => setShowPassword(!showPassword)}>
+                {showPassword ? (
+                  <Eye size={22} color="#B5A2E9" />
+                ) : (
+                  <EyeOff size={22} color="#B5A2E9" />
+                )}
+              </Pressable>
+            </View>
+          </View>
+
+          {/* Repassword */}
+          <View className="mb-4">
+            <Text className="text-gray-500 text-sm mb-1 font-[Poppins-Regular]">
+              Confirm Password
             </Text>
             <View className="w-full h-16 bg-transparent px-4 flex-row items-center border border-[#DADADA] rounded-[10px]">
               <TextInput
