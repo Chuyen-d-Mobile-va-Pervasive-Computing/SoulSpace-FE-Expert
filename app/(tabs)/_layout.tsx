@@ -3,9 +3,14 @@ import TabBarBackground from "@/components/ui/TabBarBackground";
 import { useFonts } from "expo-font";
 import { Tabs } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { Compass, Home, Plus, Settings, Users } from "lucide-react-native";
+import {
+  Calendar,
+  ClipboardCheck,
+  Home,
+  MessageCircle,
+  User,
+} from "lucide-react-native";
 import React, { useCallback } from "react";
-import { View } from "react-native";
 
 export default function TabLayout() {
   const [fontsLoaded] = useFonts({
@@ -53,52 +58,45 @@ export default function TabLayout() {
         name="home"
         options={{
           title: "Home",
-          tabBarIcon: ({ color }) => <Home size={28} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <Home size={24} color={color} strokeWidth={1.5} />
+          ),
         }}
       />
+
       <Tabs.Screen
-        name="explore"
+        name="calendar"
         options={{
-          title: "Explore",
-          tabBarIcon: ({ color }) => <Compass size={28} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="diary"
-        options={{
-          tabBarLabel: () => null, // Ẩn chữ Diary
-          tabBarIcon: ({ size }) => (
-            <View className="mt-4">
-              <View
-                style={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: 30,
-                  backgroundColor: "#E0D7F9",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  shadowColor: "#000",
-                }}
-              >
-                <Plus color="#7F56D9" size={size} />
-              </View>
-            </View>
+          title: "Calendar",
+          tabBarIcon: ({ color }) => (
+            <Calendar size={24} color={color} strokeWidth={1.5} />
           ),
         }}
       />
       <Tabs.Screen
-        name="community"
+        name="appointment"
         options={{
-          title: "Forum",
-          tabBarIcon: ({ color, size }) => <Users color={color} size={size} />,
+          title: "Appointment",
+          tabBarIcon: ({ color }) => (
+            <ClipboardCheck size={24} color={color} strokeWidth={1.5} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="settings"
+        name="chat"
         options={{
-          title: "Settings",
-          tabBarIcon: ({ color, size }) => (
-            <Settings color={color} size={size} />
+          title: "Chat",
+          tabBarIcon: ({ color }) => (
+            <MessageCircle size={24} color={color} strokeWidth={1.5} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="forum"
+        options={{
+          title: "Forum",
+          tabBarIcon: ({ color }) => (
+            <User size={24} color={color} strokeWidth={1.5} />
           ),
         }}
       />

@@ -4,31 +4,25 @@ import { useFonts } from "expo-font";
 import { useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { ChevronLeft, Eye, EyeOff } from "lucide-react-native";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   SafeAreaView,
+  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  Alert,
-  ActivityIndicator,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
-const API_BASE = process.env.EXPO_PUBLIC_API_PATH;
 
 export default function LoginScreen() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [checkingToken, setCheckingToken] = useState(true);
 
   const [fontsLoaded] = useFonts({
     "Poppins-Regular": require("@/assets/fonts/Poppins-Regular.ttf"),
@@ -43,80 +37,20 @@ export default function LoginScreen() {
     "Poppins-Italic": require("@/assets/fonts/Poppins-Italic.ttf"),
   });
 
-  // Tự động redirect nếu đã có token
-  useEffect(() => {
-    const checkToken = async () => {
-      try {
-        const token = await AsyncStorage.getItem("access_token");
-        if (token) {
-          router.replace("/(tabs)/home");
-          return;
-        }
-      } catch (err) {
-        console.log("Token check error:", err);
-      } finally {
-        setCheckingToken(false);
-      }
-    };
-    checkToken();
-  }, []);
-
   const onLayoutRootView = useCallback(async () => {
     if (fontsLoaded) await SplashScreen.hideAsync();
   }, [fontsLoaded]);
 
   if (!fontsLoaded) return null;
 
-  // Hàm parse lỗi từ backend
-  const parseErrorDetail = (data: any): string => {
-    if (!data) return "An unknown error occurred.";
-
-    if (typeof data.detail === "string") return data.detail;
-
-    if (Array.isArray(data.detail) && data.detail.length > 0) {
-      return data.detail[0].msg || "Invalid input.";
-    }
-
-    return "Login failed.";
-  };
-
-  const handleSignIn = async () => {
+  const handleSignIn = () => {
     if (!email || !password) {
-      Alert.alert("Notice", "Please fill in your email and password");
+      Alert.alert("Notice", "Please enter email and password");
       return;
     }
 
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_BASE}/api/v1/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          accept: "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        const msg = parseErrorDetail(data);
-        throw new Error(msg);
-      }
-
-      // Lưu token vào AsyncStorage
-      await AsyncStorage.setItem("access_token", data.access_token);
-      await AsyncStorage.setItem("username", data.username);
-      await AsyncStorage.setItem("role", data.role);
-
-      Alert.alert("Success", `Welcome ${data.username} to SoulSpace!`);
-      router.replace("/(tabs)/home");
-    } catch (error: any) {
-      console.log("Login error:", error);
-      Alert.alert("Login Error", error.message || "Unable to connect to server.");
-    } finally {
-      setLoading(false);
-    }
+    console.log("Login with:", { email, password });
+    router.replace("/(tabs)/home");
   };
 
   return (
@@ -124,7 +58,7 @@ export default function LoginScreen() {
       style={{ flex: 1, backgroundColor: "#FAF9FF" }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}>
         <SafeAreaView className="flex-1 bg-white" onLayout={onLayoutRootView}>
           {/* Header */}
           <View className="bg-[#B5A2E9] rounded-b-[70%] pb-[20%] -mx-40 pl-40 pr-40 pt-20">
@@ -185,11 +119,12 @@ export default function LoginScreen() {
                     )}
                   </Pressable>
                 </View>
+
                 <TouchableOpacity
                   onPress={() => router.push("/(auth)/forgot-pw")}
                   className="self-end mt-2"
                 >
-                  <Text className="text-[#ffffff] font-[Poppins-Italic]">
+                  <Text className="text-white font-[Poppins-Italic]">
                     Forgot Password?
                   </Text>
                 </TouchableOpacity>
@@ -201,24 +136,17 @@ export default function LoginScreen() {
           <View className="flex-1 px-6 pt-10">
             <TouchableOpacity
               onPress={handleSignIn}
-              disabled={loading}
-              className={`h-16 rounded-xl items-center justify-center ${
-                loading ? "bg-[#A08CE2]" : "bg-[#7F56D9]"
-              }`}
+              className="h-16 rounded-xl items-center justify-center bg-[#7F56D9]"
             >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text className="text-white font-[Poppins-Bold] text-base">
-                  Login
-                </Text>
-              )}
+              <Text className="text-white font-[Poppins-Bold] text-base">
+                Login
+              </Text>
             </TouchableOpacity>
 
             {/* Register */}
             <View className="flex-row justify-center mt-4">
               <Text className="text-black font-[Poppins-Regular]">
-                Don’t have an account?{" "}
+                Don't have an account?{" "}
               </Text>
               <TouchableOpacity onPress={() => router.push("/(auth)/signup")}>
                 <Text className="text-[#7F56D9] font-[Poppins-Medium]">

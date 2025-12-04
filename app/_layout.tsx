@@ -32,22 +32,14 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      {/* 👇 Thêm screenOptions ở đây */}
       <Stack
-        initialRouteName="(auth)/welcome"
+        initialRouteName="(auth)/login"
         screenOptions={{
           headerShown: false,
           animation: "slide_from_right",
           presentation: "card",
         }}
       >
-        <Stack.Screen name="(auth)/welcome" />
-        <Stack.Screen
-          name="(auth)/introduce"
-          options={{
-            animation: "fade",
-          }}
-        />
         <Stack.Screen name="(auth)/login" />
         <Stack.Screen name="(auth)/signup" />
         <Stack.Screen name="(auth)/forgot-pw/index" />
