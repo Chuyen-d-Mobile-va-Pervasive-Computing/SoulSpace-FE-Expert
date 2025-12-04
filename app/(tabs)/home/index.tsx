@@ -1,14 +1,17 @@
 import Decor from "@/assets/images/decor.svg";
 import Logo from "@/assets/images/logo.svg";
+import { useRouter } from "expo-router";
 import { Bell, Settings } from "lucide-react-native";
 import { useRef } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import PendingRequests from "./components/PendingRequests";
 import StatsGroup from "./components/StatsGroup";
 import UpcomingRequests from "./components/UpcomingRequest";
 
 export default function HomeScreen() {
   const scrollRef = useRef<ScrollView>(null);
+  const router = useRouter();
+
   return (
     <View className="flex-1 bg-[#FAF9FF]">
       {/* Heading */}
@@ -21,7 +24,9 @@ export default function HomeScreen() {
         </View>
         <View className="flex-row items-center gap-4">
           <Bell strokeWidth={1.5} />
-          <Settings strokeWidth={1.5} />
+          <TouchableOpacity onPress={() => router.push("/setting")}>
+            <Settings strokeWidth={1.5} />
+          </TouchableOpacity>
         </View>
       </View>
 
