@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import { Calendar, Clock, MoreVertical } from "lucide-react-native";
 import React, { useRef, useState } from "react";
 import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
@@ -5,6 +6,7 @@ import PagerView from "react-native-pager-view";
 
 export default function AppointmentScreen() {
   const [page, setPage] = useState(0);
+  const router = useRouter();
 
   const pending = [
     {
@@ -95,11 +97,9 @@ export default function AppointmentScreen() {
       >
         {lists.map((data, idx) => (
           <View key={idx} className="px-4 pb-10">
-            <ScrollView>
-              {/* ====================== UPCOMING TIMELINE ====================== */}
+            <ScrollView showsVerticalScrollIndicator={false}>
               {idx === 1 && (
                 <View className="mt-4">
-                  {/* WRAPPER MUST BE RELATIVE FOR ABSOLUTE CHILDREN */}
                   <View style={{ flexDirection: "row", position: "relative" }}>
                     {/* LEFT TIME COLUMN */}
                     <View style={{ width: 60 }}>
@@ -109,7 +109,7 @@ export default function AppointmentScreen() {
                             key={t}
                             style={{
                               position: "absolute",
-                              top: index * 120, // bigger spacing for visibility
+                              top: index * 120,
                             }}
                             className="text-[#8F9BB3] text-sm font-[Poppins-Regular]"
                           >
@@ -129,10 +129,7 @@ export default function AppointmentScreen() {
                       }}
                     >
                       {data.map((item) => {
-                        // ---------------------
-                        //   FIXED TIME PARSER
-                        // ---------------------
-                        let time = item.time.replace(".", ":"); // support "13:00 PM", "1.00 PM", etc
+                        let time = item.time.replace(".", ":");
 
                         const [hPart, rest] = time.split(":");
                         const [mPart, period] = rest.split(" ");
@@ -161,11 +158,17 @@ export default function AppointmentScreen() {
                               top: offset,
                               left: 0,
                               right: 0,
-                              zIndex: 10, // <-- FIX QUAN TRỌNG NHẤT
-                              elevation: 10, // <-- Android cần elevation
+                              zIndex: 10,
+                              elevation: 10,
                               borderLeftWidth: 4,
                               borderLeftColor: "#34C759",
                             }}
+                            onPress={() =>
+                              router.push({
+                                pathname: "/(tabs)/appointment/[id]",
+                                params: { id: String(item.id) },
+                              })
+                            }
                             className="bg-white rounded-2xl p-4 shadow-sm border border-[#EAEAEA]"
                           >
                             {/* HEADER */}
@@ -221,7 +224,6 @@ export default function AppointmentScreen() {
                 </View>
               )}
 
-              {/* ====================== ORIGINAL FOR OTHER TABS ====================== */}
               {idx !== 1 &&
                 data.map((item) => (
                   <TouchableOpacity
@@ -230,6 +232,12 @@ export default function AppointmentScreen() {
                       borderLeftWidth: 4,
                       borderLeftColor: colors[page],
                     }}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/(tabs)/appointment/[id]",
+                        params: { id: String(item.id) },
+                      })
+                    }
                     className="bg-white rounded-2xl p-4 mb-4 shadow-sm border border-[#EAEAEA]"
                   >
                     {/* HEADER ROW */}
