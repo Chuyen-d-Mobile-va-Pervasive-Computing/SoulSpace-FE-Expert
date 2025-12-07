@@ -38,14 +38,28 @@ export default function InformationScreen() {
 
   // pick avatar
   const pickAvatar = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({ quality: 0.8 });
-    if (!result.canceled) setAvatar(result.assets[0].uri);
+    let result = await ImagePicker.launchImageLibraryAsync({
+      quality: 0.8,
+      base64: true,
+    });
+
+    if (!result.canceled) {
+      const base64 = `data:image/jpeg;base64,${result.assets[0].base64}`;
+      setAvatar(base64);
+    }
   };
 
   // pick certificate
   const pickCertificate = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({ quality: 0.8 });
-    if (!result.canceled) setCert(result.assets[0].uri);
+    let result = await ImagePicker.launchImageLibraryAsync({
+      quality: 0.8,
+      base64: true,
+    });
+
+    if (!result.canceled) {
+      const base64 = `data:image/jpeg;base64,${result.assets[0].base64}`;
+      setCert(base64);
+    }
   };
 
   const handleSubmit = async () => {
@@ -57,7 +71,15 @@ export default function InformationScreen() {
       return;
     }
 
-    if (!phone || !dob || !years || !clinicName || !clinicAddress || !cert) {
+    if (
+      !phone ||
+      !dob ||
+      !years ||
+      !clinicName ||
+      !clinicAddress ||
+      !cert ||
+      !name
+    ) {
       setErrorMessage("Please fill in all required fields.");
       return;
     }
@@ -72,7 +94,7 @@ export default function InformationScreen() {
 
       const res = await completeExpertProfile({
         user_id,
-        full_name: "Unknown",
+        full_name: name,
         phone,
         date_of_birth: dob,
         years_of_experience: Number(years),
@@ -203,7 +225,7 @@ export default function InformationScreen() {
           <TextInput
             value={name}
             onChangeText={setName}
-            placeholder="you@example.com"
+            placeholder="Your full name"
             className="w-full h-14 bg-white rounded-xl px-4 border border-[#DADADA] font-[Poppins-Regular]"
           />
         </View>
