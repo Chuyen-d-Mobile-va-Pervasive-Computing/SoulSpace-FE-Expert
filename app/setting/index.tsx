@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import {
   ChevronRight,
@@ -17,6 +18,22 @@ import {
 
 export default function SettingsScreen() {
   const [showConfirm, setShowConfirm] = useState(false);
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.multiRemove([
+        "token",
+        "username",
+        "role",
+        "expert_status",
+        "profile_id",
+        "profile_completed",
+      ]);
+
+      router.replace("/(auth)/login");
+    } catch (err) {
+      console.log("LOGOUT ERROR:", err);
+    }
+  };
 
   return (
     <View className="flex-1 bg-[#FAF9FF]">
@@ -108,7 +125,7 @@ export default function SettingsScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => router.replace("/(auth)/login")}
+                  onPress={handleLogout}
                   className="bg-red-500 px-8 py-4 rounded-xl"
                 >
                   <Text className="text-base font-[Poppins-SemiBold] text-white">

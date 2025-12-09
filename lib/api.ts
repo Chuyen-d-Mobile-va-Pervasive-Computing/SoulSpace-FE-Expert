@@ -65,3 +65,50 @@ export const completeExpertProfile = (payload: any) =>
     method: "POST",
     body: JSON.stringify(payload),
   });
+
+export const loginUser = (payload: { email: string; password: string }) =>
+  api("/api/v1/auth/expert/login", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const uploadExpertAvatar = async (uri: string) => {
+  const formData = new FormData();
+
+  formData.append("file", {
+    uri,
+    type: "image/jpeg",
+    name: "avatar.jpg",
+  } as any);
+
+  const res = await fetch(`${BASE_URL}/api/v1/upload/expert/avatar`, {
+    method: "POST",
+    body: formData,
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  return await res.json();
+};
+
+
+export const uploadExpertCertificate = async (uri: string) => {
+  const formData = new FormData();
+  formData.append("file", {
+    uri,
+    type: "image/jpeg",
+    name: "certificate.jpg",
+  } as any);
+
+  const res = await fetch(`${BASE_URL}/api/v1/upload/expert/certificate`, {
+    method: "POST",
+    body: formData,
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  return await res.json();
+};
+

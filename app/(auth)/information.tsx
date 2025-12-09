@@ -1,6 +1,10 @@
 "use client";
 import CustomAlert from "@/components/CustomAlert";
-import { completeExpertProfile } from "@/lib/api";
+import {
+  completeExpertProfile,
+  uploadExpertAvatar,
+  uploadExpertCertificate,
+} from "@/lib/api";
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronLeft, MapPin, Upload } from "lucide-react-native";
@@ -21,7 +25,7 @@ export default function InformationScreen() {
   const user_id = params.user_id ? String(params.user_id) : null;
 
   // form state
-  const [avatar, setAvatar] = useState<string | null>(null);
+  const [avatar, setAvatar] = useState<string | null>(null); // storing URI
   const [bio, setBio] = useState("");
   const [years, setYears] = useState("");
   const [phone, setPhone] = useState("");
@@ -29,7 +33,7 @@ export default function InformationScreen() {
   const [name, setName] = useState("");
   const [clinicName, setClinicName] = useState("");
   const [clinicAddress, setClinicAddress] = useState("");
-  const [cert, setCert] = useState<string | null>(null);
+  const [cert, setCert] = useState<string | null>(null); // storing URI
 
   // alert + loading
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -40,12 +44,11 @@ export default function InformationScreen() {
   const pickAvatar = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
       quality: 0.8,
-      base64: true,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
     });
 
     if (!result.canceled) {
-      const base64 = `data:image/jpeg;base64,${result.assets[0].base64}`;
-      setAvatar(base64);
+      setAvatar(result.assets[0].uri); // use URI
     }
   };
 
@@ -53,12 +56,11 @@ export default function InformationScreen() {
   const pickCertificate = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
       quality: 0.8,
-      base64: true,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
     });
 
     if (!result.canceled) {
-      const base64 = `data:image/jpeg;base64,${result.assets[0].base64}`;
-      setCert(base64);
+      setCert(result.assets[0].uri); // use URI
     }
   };
 
@@ -92,7 +94,24 @@ export default function InformationScreen() {
     try {
       setLoading(true);
 
-      const res = await completeExpertProfile({
+      // --- 1. UPLOAD AVATAR IF ANY ---
+      let avatarUrl: string | undefined = undefined;
+
+      if (avatar) {
+        const uploadRes = await uploadExpertAvatar(avatar);
+        avatarUrl = uploadRes.url || uploadRes.secure_url;
+      }
+
+      // --- 2. UPLOAD CERTIFICATE ---
+      let certificateUrl: string = "";
+
+      if (cert) {
+        const uploadCertRes = await uploadExpertCertificate(cert);
+        certificateUrl = uploadCertRes.url || uploadCertRes.secure_url;
+      }
+
+      // --- 3. SUBMIT PROFILE ---
+      await completeExpertProfile({
         user_id,
         full_name: name,
         phone,
@@ -101,8 +120,8 @@ export default function InformationScreen() {
         clinic_name: clinicName,
         clinic_address: clinicAddress,
         bio,
-        avatar_url: avatar || undefined,
-        certificate_url: cert,
+        avatar_url: avatarUrl,
+        certificate_url: certificateUrl,
       });
 
       setSuccessMessage(
@@ -126,6 +145,7 @@ export default function InformationScreen() {
         message={errorMessage}
         onClose={() => setErrorMessage(null)}
       />
+
       <KeyboardAwareScrollView
         style={{ flex: 1, backgroundColor: "#FAF9FF" }}
         contentContainerStyle={{ paddingBottom: 30 }}
