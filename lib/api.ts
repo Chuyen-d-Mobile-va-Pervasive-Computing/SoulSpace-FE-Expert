@@ -162,3 +162,33 @@ export const getExpertAppointmentDetail = (id: string) =>
   api(`/api/v1/expert/appointments/${id}`, {
     method: "GET",
   });
+
+  // ACCEPT expert appointment
+  export const acceptExpertAppointment = (appointmentId: string) =>
+  api(`/api/v1/expert/appointments/${appointmentId}/action`, {
+    method: "POST",
+    body: JSON.stringify({ action: "accept" }),
+  });
+
+// DECLINE expert appointment
+export const declineExpertAppointment = (
+  appointmentId: string,
+  reason: string
+) =>
+  api(`/api/v1/expert/appointments/${appointmentId}/action`, {
+    method: "POST",
+    body: JSON.stringify({
+      action: "decline",
+      reason,
+    }),
+  });
+
+  // CANCEL expert appointment
+  export const cancelExpertAppointment = (
+  appointmentId: string,
+  reason?: string
+) =>
+  api(`/api/v1/expert/appointments/${appointmentId}`, {
+    method: "DELETE",
+    body: reason ? JSON.stringify({ reason }) : undefined,
+  });

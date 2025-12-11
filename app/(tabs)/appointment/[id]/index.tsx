@@ -1,9 +1,16 @@
-import { getExpertAppointmentDetail } from "@/lib/api";
+import {
+  acceptExpertAppointment,
+  cancelExpertAppointment,
+  declineExpertAppointment,
+  getExpertAppointmentDetail,
+} from "@/lib/api";
+
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Calendar, Clock } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Modal,
   Pressable,
@@ -19,6 +26,7 @@ export default function AppointmentDetail() {
 
   const [detail, setDetail] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingAction, setLoadingAction] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
   const [reason, setReason] = useState("");
@@ -37,12 +45,67 @@ export default function AppointmentDetail() {
 
   const loadDetail = async () => {
     try {
+      setLoading(true);
       const res = await getExpertAppointmentDetail(String(id));
       setDetail(res);
     } catch (err) {
       console.log("ERROR LOADING DETAIL:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ACCEPT APPOINTMENT
+  const handleAccept = async () => {
+    try {
+      setLoadingAction(true);
+      await acceptExpertAppointment(String(id));
+      Alert.alert("Success", "Appointment accepted!");
+      loadDetail();
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Accept failed");
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
+  // DECLINE APPOINTMENT
+  const handleDecline = async () => {
+    if (!reason) {
+      Alert.alert("Missing reason", "Please enter or select a reason.");
+      return;
+    }
+
+    try {
+      setLoadingAction(true);
+      await declineExpertAppointment(String(id), reason);
+      Alert.alert("Success", "Appointment declined.");
+      setShowModal(false);
+      loadDetail();
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Decline failed");
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
+  // CANCEL APPOINTMENT
+  const handleCancel = async () => {
+    if (!reason) {
+      Alert.alert("Missing reason", "Please enter or select a reason.");
+      return;
+    }
+
+    try {
+      setLoadingAction(true);
+      await cancelExpertAppointment(String(id), reason);
+      Alert.alert("Cancelled", "Appointment has been cancelled.");
+      setShowModal(false);
+      loadDetail();
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Cancel failed");
+    } finally {
+      setLoadingAction(false);
     }
   };
 
@@ -63,6 +126,8 @@ export default function AppointmentDetail() {
       </View>
     );
   }
+
+  const status = detail.status; // pending | upcoming | past | cancelled
 
   return (
     <View className="flex-1 bg-[#FAF9FF] px-4 pb-10">
@@ -129,22 +194,57 @@ export default function AppointmentDetail() {
         </Text>
       </View>
 
-      {/* CANCEL BUTTON */}
-      <TouchableOpacity
-        onPress={() => setShowModal(true)}
-        className="bg-red-500 p-4 rounded-xl mt-4"
-      >
-        <Text className="text-center text-white text-lg font-[Poppins-SemiBold]">
-          Cancel Appointment
-        </Text>
-      </TouchableOpacity>
+      {/* ACTION BUTTONS */}
+      {status === "pending" && (
+        <View className="mt-6 flex-row gap-3">
+          {/* DECLINE */}
+          <TouchableOpacity
+            onPress={() => setShowModal(true)}
+            className="flex-1 bg-red-500 p-4 rounded-xl"
+          >
+            <Text className="text-center text-white text-lg font-[Poppins-SemiBold]">
+              Decline
+            </Text>
+          </TouchableOpacity>
 
-      {/* CANCEL MODAL */}
+          {/* ACCEPT */}
+          <TouchableOpacity
+            disabled={loadingAction}
+            onPress={handleAccept}
+            className="flex-1 bg-green-500 p-4 rounded-xl"
+          >
+            <Text className="text-center text-white text-lg font-[Poppins-SemiBold]">
+              {loadingAction ? "Processing..." : "Accept"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* UPCOMING → SHOW CANCEL */}
+      {status === "upcoming" && (
+        <TouchableOpacity
+          onPress={() => setShowModal(true)}
+          className="bg-red-500 p-4 rounded-xl mt-6"
+        >
+          <Text className="text-center text-white text-lg font-[Poppins-SemiBold]">
+            Cancel Appointment
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {/* PAST / CANCELLED → NO BUTTONS */}
+      {(status === "past" || status === "cancelled") && (
+        <Text className="text-center text-gray-500 mt-6 font-[Poppins-Italic]">
+          This appointment is no longer active.
+        </Text>
+      )}
+
+      {/* MODAL FOR DECLINE / CANCEL */}
       <Modal visible={showModal} transparent animationType="fade">
         <View className="flex-1 justify-center items-center bg-black/40 px-4">
           <View className="w-full bg-white p-6 rounded-xl">
             <Text className="text-xl font-[Poppins-SemiBold] mb-4">
-              Reason for cancellation
+              Reason for {status === "pending" ? "declining" : "cancelling"}
             </Text>
 
             <TextInput
@@ -168,18 +268,17 @@ export default function AppointmentDetail() {
               ))}
             </View>
 
+            {/* CONFIRM */}
             <TouchableOpacity
-              onPress={() => {
-                console.log("Canceled with reason:", reason);
-                setShowModal(false);
-              }}
+              onPress={status === "pending" ? handleDecline : handleCancel}
               className="bg-red-500 p-4 rounded-xl mt-4"
             >
               <Text className="text-center text-white text-lg font-[Poppins-SemiBold]">
-                Confirm Cancel
+                {status === "pending" ? "Confirm Decline" : "Confirm Cancel"}
               </Text>
             </TouchableOpacity>
 
+            {/* CLOSE */}
             <TouchableOpacity
               onPress={() => setShowModal(false)}
               className="mt-3"
