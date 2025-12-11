@@ -4,6 +4,8 @@ import React from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 
 export default function PendingRequests({ data }: { data: any[] }) {
+  const list = data || [];
+
   return (
     <View className="mt-8">
       <View className="flex-row justify-between items-center mb-3 px-1">
@@ -25,15 +27,15 @@ export default function PendingRequests({ data }: { data: any[] }) {
         </TouchableOpacity>
       </View>
 
-      {(!data || data.length === 0) && (
+      {list.length === 0 && (
         <Text className="text-gray-500 font-[Poppins-Italic] px-1">
           There are no pending meetings yet.
         </Text>
       )}
 
-      {data?.map((item) => (
+      {list.map((item, index) => (
         <View
-          key={item.id}
+          key={`${item.appointment_date}-${item.start_time}-${index}`}
           className="bg-white rounded-2xl p-4 mb-4 shadow-sm border border-[#EAEAEA]"
           style={{ borderLeftWidth: 5, borderLeftColor: "#7F56D9" }}
         >
@@ -41,28 +43,43 @@ export default function PendingRequests({ data }: { data: any[] }) {
             Appointment Details
           </Text>
 
+          {/* DATE + TIME */}
           <View className="flex-row items-center">
             <Calendar size={18} color="#000" />
-            <Text className="ml-2 font-[Poppins-Medium]">{item.date}</Text>
+            <Text className="ml-2 font-[Poppins-Medium]">
+              {item.appointment_date}
+            </Text>
 
             <Clock size={18} color="#000" style={{ marginLeft: 20 }} />
-            <Text className="ml-2 font-[Poppins-Medium]">{item.time}</Text>
+            <Text className="ml-2 font-[Poppins-Medium]">
+              {item.start_time}
+            </Text>
           </View>
 
           <View className="w-full h-[1px] bg-gray-200 my-4" />
 
+          {/* USER INFO + ACTION */}
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center">
-              <Image
-                source={{ uri: item.avatar }}
-                className="w-12 h-12 rounded-full mr-4"
-              />
+              {item.user?.avatar_url ? (
+                <Image
+                  source={{ uri: item.user.avatar_url }}
+                  className="w-12 h-12 rounded-full mr-4"
+                />
+              ) : (
+                <View className="w-12 h-12 rounded-full mr-4 bg-gray-300" />
+              )}
+
               <Text className="text-base font-[Poppins-SemiBold]">
-                {item.client_name}
+                {item.user?.full_name}
               </Text>
             </View>
 
-            <TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                /* TODO: accept logic */
+              }}
+            >
               <Text className="text-[#7F56D9] font-[Poppins-Medium]">
                 Accept
               </Text>

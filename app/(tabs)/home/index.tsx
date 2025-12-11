@@ -93,8 +93,10 @@ export default function HomeScreen() {
           </View>
 
           {/* PASS DATA TO CHILDREN */}
-          <PendingRequests data={data?.pending_preview} />
-          <UpcomingRequests data={data?.upcoming_preview} />
+          <View className="mb-10">
+            <PendingRequests data={data?.pending_preview} />
+            <UpcomingRequests data={data?.upcoming_preview} />
+          </View>
         </ScrollView>
       </View>
     </View>

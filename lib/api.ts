@@ -151,3 +151,14 @@ export const deleteExpertSchedule = (scheduleId: string) =>
     method: "DELETE",
   });
 
+// GET expert appointments by status
+export const getExpertAppointments = (status: string) =>
+  api(`/api/v1/expert/appointments/?status=${status}`, {
+    method: "GET",
+  });
+
+// GET expert appointment detail
+export const getExpertAppointmentDetail = (id: string) =>
+  api(`/api/v1/expert/appointments/${id}`, {
+    method: "GET",
+  });

@@ -1,63 +1,28 @@
+import { getExpertAppointments } from "@/lib/api";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Calendar, Clock, MoreVertical } from "lucide-react-native";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import PagerView from "react-native-pager-view";
 
 export default function AppointmentScreen() {
   const [page, setPage] = useState(0);
   const router = useRouter();
-
-  const pending = [
-    {
-      id: 1,
-      date: "Wed, 14 Oct",
-      time: "12:30 PM",
-      doctor: "Nguyen Van A",
-      clinic: "Healthy Life Wellness Clinic",
-      image: "https://i.pravatar.cc/40?img=26",
-    },
-    {
-      id: 2,
-      date: "Wed, 14 Oct",
-      time: "4:00 PM",
-      doctor: "Nguyen Thi B",
-      clinic: "Healthy Life Wellness Clinic",
-      image: "https://i.pravatar.cc/40?img=27",
-    },
-  ];
-
-  const upcoming = [
-    {
-      id: 3,
-      date: "Fri, 18 Oct",
-      time: "1:00 PM",
-      doctor: "Dr. Manoj Kumar",
-      clinic: "Central Hospital - 88/4 VRT",
-      image: "https://i.pravatar.cc/40?img=27",
-    },
-  ];
-
-  const past = [
-    {
-      id: 2,
-      date: "Mon, 02 Sep",
-      time: "09:00 AM",
-      doctor: "Dr. Amit Verma",
-      clinic: "City Healthcare Center - 12/4 UPT",
-      image: "https://i.pravatar.cc/40?img=26",
-    },
-  ];
-
-  const tabs = ["Pending", "Upcoming", "Past"];
-  const lists = [pending, upcoming, past];
   const pagerRef = useRef<React.ElementRef<typeof PagerView> | null>(null);
+
+  // Data từ API
+  const [pending, setPending] = useState<any[]>([]);
+  const [upcoming, setUpcoming] = useState<any[]>([]);
+  const [past, setPast] = useState<any[]>([]);
+
   const colors = ["#7F56D9", "#34C759", "#FF4D4F"];
+  const tabs = ["Pending", "Upcoming", "Past"];
 
   const params = useLocalSearchParams();
   const tabParam = params.tab as string | undefined;
 
-  React.useEffect(() => {
+  // Load tab init từ URL params
+  useEffect(() => {
     if (!tabParam) return;
 
     const idx =
@@ -70,9 +35,29 @@ export default function AppointmentScreen() {
             : 0;
 
     setPage(idx);
-    // ensure pager updates
     setTimeout(() => pagerRef.current?.setPage(idx), 50);
   }, [tabParam]);
+
+  // Load data từ API
+  useEffect(() => {
+    loadAppointments();
+  }, []);
+
+  const loadAppointments = async () => {
+    try {
+      const resPending = await getExpertAppointments("pending");
+      const resUpcoming = await getExpertAppointments("upcoming");
+      const resPast = await getExpertAppointments("past");
+
+      setPending(resPending.data || []);
+      setUpcoming(resUpcoming.data || []);
+      setPast(resPast.data || []);
+    } catch (err) {
+      console.log("LOAD APPOINTMENTS ERROR:", err);
+    }
+  };
+
+  const lists = [pending, upcoming, past];
 
   return (
     <View className="flex-1 bg-[#FAF9FF]">
@@ -118,186 +103,131 @@ export default function AppointmentScreen() {
         {lists.map((data, idx) => (
           <View key={idx} className="px-4 pb-10">
             <ScrollView showsVerticalScrollIndicator={false}>
+              {/* TAB UPCOMING → Timeline view */}
               {idx === 1 && (
                 <View className="mt-4">
-                  <View style={{ flexDirection: "row", position: "relative" }}>
-                    {/* LEFT TIME COLUMN */}
-                    <View style={{ width: 60 }}>
-                      {["08:00", "10:00", "12:00", "14:00", "16:00"].map(
-                        (t, index) => (
-                          <Text
-                            key={t}
-                            style={{
-                              position: "absolute",
-                              top: index * 120,
-                            }}
-                            className="text-[#8F9BB3] text-sm font-[Poppins-Regular]"
-                          >
-                            {t}
-                          </Text>
-                        )
-                      )}
-                    </View>
+                  {data.length === 0 && (
+                    <Text className="text-gray-500 mt-4 text-center font-[Poppins-Italic]">
+                      No upcoming appointments.
+                    </Text>
+                  )}
 
-                    {/* RIGHT TIMELINE CARDS */}
-                    <View
+                  {data.map((item, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      className="bg-white rounded-2xl p-4 mb-4 shadow-sm border border-[#EAEAEA]"
                       style={{
-                        flex: 1,
-                        minHeight: 600,
-                        position: "relative",
-                        overflow: "visible",
+                        borderLeftWidth: 4,
+                        borderLeftColor: colors[idx],
                       }}
                     >
-                      {data.map((item) => {
-                        let time = item.time.replace(".", ":");
+                      <View className="flex-row justify-between items-center">
+                        <Text className="text-gray-500 font-[Poppins-Medium]">
+                          Appointment Details
+                        </Text>
+                        <MoreVertical size={20} color="#6B6B6B" />
+                      </View>
 
-                        const [hPart, rest] = time.split(":");
-                        const [mPart, period] = rest.split(" ");
+                      <View className="flex-row items-center mt-3">
+                        <Calendar size={20} color="#000" />
+                        <Text className="ml-2 text-base font-[Poppins-Medium]">
+                          {item.date}
+                        </Text>
 
-                        let hour = parseInt(hPart);
-                        const minute = parseInt(mPart);
+                        <Clock
+                          size={20}
+                          color="#000"
+                          style={{ marginLeft: 20 }}
+                        />
+                        <Text className="ml-2 text-base font-[Poppins-Medium]">
+                          {item.start_time}
+                        </Text>
+                      </View>
 
-                        // Force 12h format if input was 24h
-                        if (hour > 12 && period === "PM") hour -= 12;
+                      <View className="w-full h-[1px] bg-gray-200 my-4" />
 
-                        // Convert 12h → 24h
-                        let hour24 = hour;
-                        if (period === "PM" && hour !== 12) hour24 = hour + 12;
-                        if (period === "AM" && hour === 12) hour24 = 0;
+                      <View className="flex-row items-center justify-between">
+                        <View className="flex-row items-center">
+                          <Image
+                            source={{ uri: item.user.avatar_url || "" }}
+                            className="w-14 h-14 rounded-full mr-4 bg-gray-200"
+                          />
+                          <Text className="text-lg font-[Poppins-SemiBold]">
+                            {item.user.full_name}
+                          </Text>
+                        </View>
 
-                        const decimalTime = hour24 + minute / 60;
-
-                        // TIMELINE START AT 08:00
-                        const offset = (decimalTime - 8) * 60;
-
-                        return (
-                          <TouchableOpacity
-                            key={item.id}
-                            style={{
-                              position: "absolute",
-                              top: offset,
-                              left: 0,
-                              right: 0,
-                              zIndex: 10,
-                              elevation: 10,
-                              borderLeftWidth: 4,
-                              borderLeftColor: "#34C759",
-                            }}
-                            onPress={() =>
-                              router.push({
-                                pathname: "/(tabs)/appointment/[id]",
-                                params: { id: String(item.id) },
-                              })
-                            }
-                            className="bg-white rounded-2xl p-4 shadow-sm border border-[#EAEAEA]"
-                          >
-                            {/* HEADER */}
-                            <View className="flex-row justify-between items-center">
-                              <Text className="text-gray-500 font-[Poppins-Medium]">
-                                Appointment Details
-                              </Text>
-                              <MoreVertical size={20} color="#6B6B6B" />
-                            </View>
-
-                            {/* DATE & TIME */}
-                            <View className="flex-row items-center mt-3">
-                              <Calendar size={20} color="#000" />
-                              <Text className="ml-2 text-base font-[Poppins-Medium]">
-                                {item.date}
-                              </Text>
-
-                              <Clock
-                                size={20}
-                                color="#000"
-                                style={{ marginLeft: 20 }}
-                              />
-                              <Text className="ml-2 text-base font-[Poppins-Medium]">
-                                {item.time}
-                              </Text>
-                            </View>
-
-                            <View className="w-full h-[1px] bg-gray-200 my-4" />
-
-                            {/* DOCTOR */}
-                            <View className="flex-row items-center justify-between">
-                              <View className="flex-row items-center">
-                                <Image
-                                  source={{ uri: item.image }}
-                                  className="w-14 h-14 rounded-full mr-4"
-                                />
-                                <Text className="text-lg font-[Poppins-SemiBold]">
-                                  {item.doctor}
-                                </Text>
-                              </View>
-
-                              <TouchableOpacity>
-                                <Text className="text-[#7F56D9] text-base font-[Poppins-SemiBold]">
-                                  Chat
-                                </Text>
-                              </TouchableOpacity>
-                            </View>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  </View>
+                        <TouchableOpacity>
+                          <Text className="text-[#7F56D9] text-base font-[Poppins-SemiBold]">
+                            Chat
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
                 </View>
               )}
 
+              {/* PENDING + PAST */}
               {idx !== 1 &&
-                data.map((item) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={{
-                      borderLeftWidth: 4,
-                      borderLeftColor: colors[page],
-                    }}
-                    onPress={() =>
-                      router.push({
-                        pathname: "/(tabs)/appointment/[id]",
-                        params: { id: String(item.id) },
-                      })
-                    }
-                    className="bg-white rounded-2xl p-4 mb-4 shadow-sm border border-[#EAEAEA]"
-                  >
-                    {/* HEADER ROW */}
-                    <View className="flex-row justify-between items-center">
-                      <Text className="text-gray-500 font-[Poppins-Medium]">
-                        Appointment Details
-                      </Text>
-                      <MoreVertical size={20} color="#6B6B6B" />
-                    </View>
+                (data.length === 0 ? (
+                  <Text className="text-gray-500 mt-4 text-center font-[Poppins-Italic]">
+                    No appointments here.
+                  </Text>
+                ) : (
+                  data.map((item, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/(tabs)/appointment/[id]",
+                          params: { id: item.appointment_id },
+                        })
+                      }
+                      className="bg-white rounded-2xl p-4 mb-4 shadow-sm border border-[#EAEAEA]"
+                      style={{
+                        borderLeftWidth: 4,
+                        borderLeftColor: colors[idx],
+                      }}
+                    >
+                      <View className="flex-row justify-between items-center">
+                        <Text className="text-gray-500 font-[Poppins-Medium]">
+                          Appointment Details
+                        </Text>
+                        <MoreVertical size={20} color="#6B6B6B" />
+                      </View>
 
-                    <View className="flex-row items-center mt-3">
-                      <Calendar size={20} color="#000" />
-                      <Text className="ml-2 text-base font-[Poppins-Medium]">
-                        {item.date}
-                      </Text>
+                      <View className="flex-row items-center mt-3">
+                        <Calendar size={20} color="#000" />
+                        <Text className="ml-2 text-base font-[Poppins-Medium]">
+                          {item.date}
+                        </Text>
 
-                      <Clock
-                        size={20}
-                        color="#000"
-                        style={{ marginLeft: 20 }}
-                      />
-                      <Text className="ml-2 text-base font-[Poppins-Medium]">
-                        {item.time}
-                      </Text>
-                    </View>
-
-                    <View className="w-full h-[1px] bg-gray-200 my-4" />
-
-                    <View className="flex-row items-center">
-                      <Image
-                        source={{ uri: item.image }}
-                        className="w-14 h-14 rounded-full mr-4"
-                      />
-                      <View>
-                        <Text className="text-lg font-[Poppins-SemiBold]">
-                          {item.doctor}
+                        <Clock
+                          size={20}
+                          color="#000"
+                          style={{ marginLeft: 20 }}
+                        />
+                        <Text className="ml-2 text-base font-[Poppins-Medium]">
+                          {item.start_time}
                         </Text>
                       </View>
-                    </View>
-                  </TouchableOpacity>
+
+                      <View className="w-full h-[1px] bg-gray-200 my-4" />
+
+                      <View className="flex-row items-center">
+                        <Image
+                          source={{ uri: item.user.avatar_url || "" }}
+                          className="w-14 h-14 rounded-full mr-4 bg-gray-200"
+                        />
+                        <View>
+                          <Text className="text-lg font-[Poppins-SemiBold]">
+                            {item.user.full_name}
+                          </Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  ))
                 ))}
             </ScrollView>
           </View>

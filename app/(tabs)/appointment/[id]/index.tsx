@@ -1,7 +1,9 @@
+import { getExpertAppointmentDetail } from "@/lib/api";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Calendar, Clock } from "lucide-react-native";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   Modal,
   Pressable,
@@ -15,6 +17,9 @@ export default function AppointmentDetail() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
 
+  const [detail, setDetail] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
   const [showModal, setShowModal] = useState(false);
   const [reason, setReason] = useState("");
 
@@ -25,23 +30,59 @@ export default function AppointmentDetail() {
     "Scheduled by mistake",
   ];
 
+  // LOAD DETAIL
+  useEffect(() => {
+    loadDetail();
+  }, [id]);
+
+  const loadDetail = async () => {
+    try {
+      const res = await getExpertAppointmentDetail(String(id));
+      setDetail(res);
+    } catch (err) {
+      console.log("ERROR LOADING DETAIL:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View className="flex-1 justify-center items-center bg-[#FAF9FF]">
+        <ActivityIndicator size="large" color="#7F56D9" />
+      </View>
+    );
+  }
+
+  if (!detail) {
+    return (
+      <View className="flex-1 justify-center items-center bg-[#FAF9FF]">
+        <Text className="text-gray-600 font-[Poppins-Regular]">
+          Appointment not found.
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1 bg-[#FAF9FF] px-4 pb-10">
-      {/* DOCTOR CARD */}
+      {/* USER CARD */}
       <View className="bg-white rounded-[10px] p-4 mt-6 shadow">
         <Image
-          source={{ uri: "https://i.pravatar.cc/200?img=10" }}
-          className="w-full h-56 rounded-[10px]"
+          source={{
+            uri: detail.user?.avatar_url || "https://via.placeholder.com/200",
+          }}
+          className="w-full h-56 rounded-[10px] bg-gray-200"
           resizeMode="cover"
         />
 
         <View className="flex-row justify-between items-center mt-4">
           <Text className="text-[18px] font-[Poppins-SemiBold] text-black">
-            Dr. John Smith
+            {detail.user?.full_name}
           </Text>
 
           <Text className="text-[18px] text-gray-600 font-[Poppins-Regular]">
-            +1 234 567 890
+            {detail.user?.phone}
           </Text>
         </View>
       </View>
@@ -55,39 +96,36 @@ export default function AppointmentDetail() {
         <View className="flex-row gap-4 items-center mt-4 ml-1">
           <Calendar color="#71717A" size={20} />
           <Text className="text-[#71717A] font-[Poppins-Regular] text-[14px]">
-            Wed, 14 Oct
+            {detail.appointment_date}
           </Text>
         </View>
 
         <View className="flex-row gap-4 items-center mt-4 ml-1">
           <Clock color="#71717A" size={20} />
           <Text className="text-[#71717A] font-[Poppins-Regular] text-[14px]">
-            12:30 PM
+            {detail.start_time} - {detail.end_time}
           </Text>
         </View>
       </View>
 
-      {/* ADDRESS */}
+      {/* Clinic */}
       <View className="mt-8">
         <Text className="text-[18px] font-[Poppins-SemiBold] text-[#333333]">
-          Clinic Address
+          Clinic Information
         </Text>
         <Text className="text-[14px] font-[Poppins-Regular] text-[#878787] mt-2">
-          Healthy Life Wellness Clinic - 456, Sunshine Avenue, Raja Park, Tilak
-          Nagar - Jaipur, Rajasthan, 302004
+          {detail.clinic?.address || "No clinic information provided."}
         </Text>
       </View>
 
       {/* Separator */}
       <View className="h-[1px] bg-[#E5E5E5] my-3" />
 
-      {/* Total */}
+      {/* Pricing */}
       <View className="flex-row justify-between items-center">
-        <Text className="text-[18px] font-[Poppins-SemiBold]">
-          Total payable
-        </Text>
+        <Text className="text-[18px] font-[Poppins-SemiBold]">Pricing</Text>
         <Text className="text-[18px] font-[Poppins-Bold] text-[#007BFF]">
-          $120.00
+          ${detail.pricing?.amount || "0.00"}
         </Text>
       </View>
 
@@ -101,6 +139,7 @@ export default function AppointmentDetail() {
         </Text>
       </TouchableOpacity>
 
+      {/* CANCEL MODAL */}
       <Modal visible={showModal} transparent animationType="fade">
         <View className="flex-1 justify-center items-center bg-black/40 px-4">
           <View className="w-full bg-white p-6 rounded-xl">
@@ -108,7 +147,6 @@ export default function AppointmentDetail() {
               Reason for cancellation
             </Text>
 
-            {/* INPUT */}
             <TextInput
               placeholder="Enter reason..."
               value={reason}
@@ -116,7 +154,6 @@ export default function AppointmentDetail() {
               className="border border-gray-300 rounded-lg p-3 mb-4 text-[16px] font-[Poppins-Regular]"
             />
 
-            {/* REASON OPTIONS */}
             <View>
               {reasonOptions.map((opt, index) => (
                 <Pressable
@@ -131,7 +168,6 @@ export default function AppointmentDetail() {
               ))}
             </View>
 
-            {/* CANCEL BUTTON */}
             <TouchableOpacity
               onPress={() => {
                 console.log("Canceled with reason:", reason);
@@ -144,7 +180,6 @@ export default function AppointmentDetail() {
               </Text>
             </TouchableOpacity>
 
-            {/* CLOSE */}
             <TouchableOpacity
               onPress={() => setShowModal(false)}
               className="mt-3"
