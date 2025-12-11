@@ -1,19 +1,23 @@
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react-native";
-import { useState } from "react";
-import { Modal, Text, TextInput, TouchableOpacity, View } from "react-native";
-
-// MOCK APPOINTMENTS
-const mockAppointments: Record<string, string[]> = {
-  "2025-12-02": ["9:00 - 11:00", "13:00 - 14:00"],
-  "2025-12-05": ["10:00 - 12:00"],
-  "2025-12-11": ["8:00 - 9:00"],
-  "2025-12-17": ["9:00 - 11:00", "15:00 - 17:00"],
-};
+import {
+  createExpertSchedule,
+  deleteExpertSchedule,
+  getExpertSchedules,
+} from "@/lib/api";
+import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react-native";
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Modal,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export default function CalendarScreen() {
   const today = new Date();
 
-  // REACTIVE STATES
+  // STATE
   const [currentMonth, setCurrentMonth] = useState(today.getMonth()); // 0–11
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [selectedDate, setSelectedDate] = useState(
@@ -23,6 +27,12 @@ export default function CalendarScreen() {
     )}-${String(today.getDate()).padStart(2, "0")}`
   );
 
+  const [schedules, setSchedules] = useState<Record<string, any[]>>({});
+  const [loading, setLoading] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  // POPUP STATES
   const [showModal, setShowModal] = useState(false);
   const [date, setDate] = useState("");
   const [timeStart, setTimeStart] = useState("");
@@ -31,26 +41,11 @@ export default function CalendarScreen() {
   // GET NUMBER OF DAYS IN MONTH
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
-  // FIRST DAY OF WEEK (0 = Sunday)
+  // FIRST DAY OF WEEK (0 = Sunday → adjust to Monday-first)
   const jsFirstDay = new Date(currentYear, currentMonth, 1).getDay();
   const firstDay = jsFirstDay === 0 ? 6 : jsFirstDay - 1;
 
-  // MOVE MONTH LEFT
-  const previousMonth = () => {
-    if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear((y) => y - 1);
-    } else setCurrentMonth((m) => m - 1);
-  };
-
-  // MOVE MONTH RIGHT
-  const nextMonth = () => {
-    if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear((y) => y + 1);
-    } else setCurrentMonth((m) => m + 1);
-  };
-
+  // FORMAT DATE
   const formatDate = (day: number) =>
     `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(
       day
@@ -60,6 +55,86 @@ export default function CalendarScreen() {
     "en-US",
     { month: "long" }
   );
+
+  // LOAD SCHEDULES ON MONTH CHANGE
+  useEffect(() => {
+    loadSchedules();
+  }, [currentMonth, currentYear]);
+
+  const loadSchedules = async () => {
+    try {
+      setLoading(true);
+
+      const monthStr = `${currentYear}-${String(currentMonth + 1).padStart(
+        2,
+        "0"
+      )}`;
+
+      const res = await getExpertSchedules(monthStr);
+
+      const map: Record<string, any[]> = {};
+
+      const list = res.data || [];
+
+      list.forEach((item: any) => {
+        if (!map[item.date]) map[item.date] = [];
+        map[item.date].push(item);
+      });
+
+      setSchedules(map);
+    } catch (err) {
+      console.log(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ADD NEW SLOT
+  const handleAddSchedule = async () => {
+    if (!date || !timeStart || !timeEnd) return;
+
+    try {
+      await createExpertSchedule({
+        date,
+        start_time: timeStart,
+        end_time: timeEnd,
+      });
+
+      setShowModal(false);
+      setDate("");
+      setTimeStart("");
+      setTimeEnd("");
+
+      loadSchedules();
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  // DELETE SLOT
+  const handleDeleteSlot = async (id: string) => {
+    try {
+      await deleteExpertSchedule(id);
+      loadSchedules();
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  // MOVE MONTH
+  const previousMonth = () => {
+    if (currentMonth === 0) {
+      setCurrentMonth(11);
+      setCurrentYear((y) => y - 1);
+    } else setCurrentMonth((m) => m - 1);
+  };
+
+  const nextMonth = () => {
+    if (currentMonth === 11) {
+      setCurrentMonth(0);
+      setCurrentYear((y) => y + 1);
+    } else setCurrentMonth((m) => m + 1);
+  };
 
   return (
     <View className="flex-1 bg-[#FAF9FF] px-4 pt-4 relative">
@@ -101,19 +176,24 @@ export default function CalendarScreen() {
         ))}
       </View>
 
+      {/* LOADING INDICATOR */}
+      {loading && (
+        <ActivityIndicator size="large" color="#7F56D9" className="mt-4" />
+      )}
+
       {/* CALENDAR GRID */}
-      <View className="flex-row flex-wrap">
-        {/* Empty slots before the first day */}
+      <View className="flex-row flex-wrap mt-2">
+        {/* Empty slots */}
         {Array.from({ length: firstDay }).map((_, i) => (
           <View key={i} className="w-[14%] h-14" />
         ))}
 
-        {/* Each day of month */}
+        {/* Days */}
         {Array.from({ length: daysInMonth }).map((_, i) => {
           const day = i + 1;
           const fullDate = formatDate(day);
           const isSelected = fullDate === selectedDate;
-          const haveAppointments = !!mockAppointments[fullDate];
+          const hasSlots = schedules[fullDate]?.length > 0;
 
           return (
             <TouchableOpacity
@@ -139,14 +219,15 @@ export default function CalendarScreen() {
                 </Text>
               </View>
 
-              {/* DOT AREA (always same height) */}
+              {/* DOTS */}
               <View className="h-3 flex-row gap-1 mt-1 justify-center items-center">
-                {mockAppointments[fullDate]?.map((_, idx) => (
-                  <View
-                    key={idx}
-                    className="w-2 h-2 bg-[#7F56D9] rounded-full"
-                  />
-                ))}
+                {hasSlots &&
+                  schedules[fullDate].map((_, idx) => (
+                    <View
+                      key={idx}
+                      className="w-2 h-2 bg-[#7F56D9] rounded-full"
+                    />
+                  ))}
               </View>
             </TouchableOpacity>
           );
@@ -165,13 +246,24 @@ export default function CalendarScreen() {
         </View>
 
         <View className="flex-row flex-wrap mt-3 gap-3">
-          {mockAppointments[selectedDate]?.length ? (
-            mockAppointments[selectedDate].map((slot, i) => (
+          {schedules[selectedDate]?.length ? (
+            schedules[selectedDate].map((slot) => (
               <View
-                key={i}
+                key={slot.id}
                 className="border border-purple-400 px-4 py-2 rounded-full flex-row items-center gap-3"
               >
-                <Text className="font-[Poppins-Regular]">{slot}</Text>
+                <Text className="font-[Poppins-Regular]">
+                  {slot.start_time} - {slot.end_time}
+                </Text>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    setDeleteId(slot.schedule_id);
+                    setShowDeleteConfirm(true);
+                  }}
+                >
+                  <X size={16} color="#FF3B30" />
+                </TouchableOpacity>
               </View>
             ))
           ) : (
@@ -182,15 +274,18 @@ export default function CalendarScreen() {
         </View>
       </View>
 
-      {/* FLOATING + BUTTON */}
+      {/* FLOATING ADD BUTTON */}
       <TouchableOpacity
-        onPress={() => setShowModal(true)}
+        onPress={() => {
+          setDate(selectedDate);
+          setShowModal(true);
+        }}
         className="absolute bottom-24 right-6 bg-[#7F56D9] w-16 h-16 rounded-full items-center justify-center shadow-lg"
       >
         <Plus size={36} color="#fff" />
       </TouchableOpacity>
 
-      {/* POPUP ADD SLOT */}
+      {/* ADD SLOT MODAL */}
       <Modal visible={showModal} transparent animationType="fade">
         <View className="flex-1 bg-black/40 justify-center items-center px-6">
           <View className="w-full p-5 bg-white rounded-2xl">
@@ -211,7 +306,7 @@ export default function CalendarScreen() {
 
             {/* Start time */}
             <View className="mb-4">
-              <Text className="mb-1 font-[Poppins-Regular]">Time start</Text>
+              <Text className="mb-1 font-[Poppins-Regular]">Start time</Text>
               <TextInput
                 className="border border-gray-300 rounded-lg px-3 py-2"
                 placeholder="09:00"
@@ -222,10 +317,10 @@ export default function CalendarScreen() {
 
             {/* End time */}
             <View className="mb-4">
-              <Text className="mb-1 font-[Poppins-Regular]">Time end</Text>
+              <Text className="mb-1 font-[Poppins-Regular]">End time</Text>
               <TextInput
                 className="border border-gray-300 rounded-lg px-3 py-2"
-                placeholder="11:00"
+                placeholder="10:00"
                 value={timeEnd}
                 onChangeText={setTimeEnd}
               />
@@ -241,7 +336,7 @@ export default function CalendarScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={() => setShowModal(false)}
+                onPress={handleAddSchedule}
                 className="flex-1 ml-2 bg-purple-500 py-3 rounded-lg items-center"
               >
                 <Text className="text-white font-[Poppins-Bold]">Add</Text>
@@ -250,6 +345,41 @@ export default function CalendarScreen() {
           </View>
         </View>
       </Modal>
+      {showDeleteConfirm && (
+        <Modal transparent animationType="fade" visible={showDeleteConfirm}>
+          <View className="flex-1 bg-black/40 justify-center items-center px-6">
+            <View className="w-full bg-white rounded-2xl p-6">
+              <Text className="text-xl font-[Poppins-Bold] text-center mb-4">
+                Delete this slot?
+              </Text>
+
+              <Text className="text-center mb-6 text-gray-600 font-[Poppins-Regular]">
+                Are you sure you want to delete this time slot?
+              </Text>
+
+              <View className="flex-row justify-between">
+                <TouchableOpacity
+                  className="flex-1 mr-2 bg-gray-200 py-3 rounded-lg items-center"
+                  onPress={() => setShowDeleteConfirm(false)}
+                >
+                  <Text className="font-[Poppins-Bold]">Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  className="flex-1 ml-2 bg-red-500 py-3 rounded-lg items-center"
+                  onPress={async () => {
+                    if (deleteId) await handleDeleteSlot(deleteId);
+                    setShowDeleteConfirm(false);
+                    setDeleteId(null);
+                  }}
+                >
+                  <Text className="text-white font-[Poppins-Bold]">Delete</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }

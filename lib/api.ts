@@ -51,19 +51,21 @@ async function api(path: string, options: RequestInit = {}) {
 
 
 // === AUTH API ===
-
+// REGISTER expert
 export const registerExpert = (payload: any) =>
   api("/api/v1/auth/expert/register", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 
+// COMPLETE expert profile
 export const completeExpertProfile = (payload: any) =>
   api("/api/v1/auth/expert/complete-profile", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 
+// LOGIN expert
 export const loginUser = async (payload: { email: string; password: string }) => {
   const res = await api("/api/v1/auth/expert/login", {
     method: "POST",
@@ -77,6 +79,7 @@ export const loginUser = async (payload: { email: string; password: string }) =>
   return res;
 };
 
+// UPLOAD expert avatar
 export const uploadExpertAvatar = async (uri: string) => {
   const formData = new FormData();
 
@@ -97,7 +100,7 @@ export const uploadExpertAvatar = async (uri: string) => {
   return await res.json();
 };
 
-
+// UPLOAD expert certificate
 export const uploadExpertCertificate = async (uri: string) => {
   const formData = new FormData();
   formData.append("file", {
@@ -117,7 +120,34 @@ export const uploadExpertCertificate = async (uri: string) => {
   return await res.json();
 };
 
+// GET expert dashboard
 export const getExpertDashboard = () =>
   api("/api/v1/expert/dashboard/", {
     method: "GET",
   });
+
+// GET schedules by month
+export const getExpertSchedules = (month: string) =>
+  api(`/api/v1/expert/schedules/?month=${month}`, {
+    method: "GET",
+  });
+
+// CREATE schedule
+interface SchedulePayload {
+  date: string;
+  start_time: string;
+  end_time: string;
+}
+
+export const createExpertSchedule = (payload: SchedulePayload) =>
+  api("/api/v1/expert/schedules/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+// DELETE schedule
+export const deleteExpertSchedule = (scheduleId: string) =>
+  api(`/api/v1/expert/schedules/${scheduleId}`, {
+    method: "DELETE",
+  });
+
