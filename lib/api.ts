@@ -3,11 +3,12 @@ const BASE_URL = process.env.EXPO_PUBLIC_API_PATH;
 async function api(path: string, options: RequestInit = {}) {
   try {
     const res = await fetch(`${BASE_URL}${path}`, {
-      ...options,
+      method: options.method || "GET",
       headers: {
         "Content-Type": "application/json",
         ...(options.headers || {}),
       },
+      body: options.body || undefined,
     });
 
     let data: any = null;

@@ -7,7 +7,7 @@ import {
 } from "@/lib/api";
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ChevronLeft, MapPin, Upload } from "lucide-react-native";
+import { ChevronLeft, DollarSign, MapPin, Upload } from "lucide-react-native";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -34,6 +34,7 @@ export default function InformationScreen() {
   const [clinicName, setClinicName] = useState("");
   const [clinicAddress, setClinicAddress] = useState("");
   const [cert, setCert] = useState<string | null>(null); // storing URI
+  const [consultationPrice, setConsultationPrice] = useState("");
 
   // alert + loading
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -80,7 +81,8 @@ export default function InformationScreen() {
       !clinicName ||
       !clinicAddress ||
       !cert ||
-      !name
+      !name ||
+      !consultationPrice
     ) {
       setErrorMessage("Please fill in all required fields.");
       return;
@@ -122,6 +124,7 @@ export default function InformationScreen() {
         bio,
         avatar_url: avatarUrl,
         certificate_url: certificateUrl,
+        consultation_price: Number(consultationPrice),
       });
 
       setSuccessMessage(
@@ -250,17 +253,35 @@ export default function InformationScreen() {
           />
         </View>
 
-        {/* Clinic name */}
-        <View className="px-5 mt-6">
-          <Text className="text-gray-600 mb-1 font-[Poppins-Medium]">
-            Clinic Name
-          </Text>
-          <TextInput
-            value={clinicName}
-            onChangeText={setClinicName}
-            placeholder="Clinic ABC"
-            className="w-full h-14 bg-white rounded-xl px-4 border border-[#DADADA] font-[Poppins-Regular]"
-          />
+        <View className="px-5 mt-6 flex-row">
+          {/* Clinic name */}
+          <View className="flex-1 mr-2">
+            <Text className="text-gray-600 mb-1 font-[Poppins-Medium]">
+              Clinic Name
+            </Text>
+            <TextInput
+              value={clinicName}
+              onChangeText={setClinicName}
+              placeholder="Clinic ABC"
+              className="w-full h-14 bg-white rounded-xl px-4 border border-[#DADADA] font-[Poppins-Regular]"
+            />
+          </View>
+
+          {/* Consultation Price */}
+          <View className="flex-1 ml-2">
+            <Text className="text-gray-600 mb-1 font-[Poppins-Medium]">
+              Consultation Price
+            </Text>
+            <View className="flex-row items-center bg-white rounded-xl border border-[#DADADA] px-4 h-14">
+              <DollarSign size={20} color="#7F56D9" />
+              <TextInput
+                value={consultationPrice}
+                onChangeText={setConsultationPrice}
+                placeholder="50"
+                className="flex-1 ml-2 font-[Poppins-Regular]"
+              />
+            </View>
+          </View>
         </View>
 
         {/* Clinic address */}
