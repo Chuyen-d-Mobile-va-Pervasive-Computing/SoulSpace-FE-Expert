@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Calendar, Clock, MoreVertical } from "lucide-react-native";
 import React, { useRef, useState } from "react";
 import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
@@ -53,6 +53,26 @@ export default function AppointmentScreen() {
   const lists = [pending, upcoming, past];
   const pagerRef = useRef<React.ElementRef<typeof PagerView> | null>(null);
   const colors = ["#7F56D9", "#34C759", "#FF4D4F"];
+
+  const params = useLocalSearchParams();
+  const tabParam = params.tab as string | undefined;
+
+  React.useEffect(() => {
+    if (!tabParam) return;
+
+    const idx =
+      tabParam === "pending"
+        ? 0
+        : tabParam === "upcoming"
+          ? 1
+          : tabParam === "past"
+            ? 2
+            : 0;
+
+    setPage(idx);
+    // ensure pager updates
+    setTimeout(() => pagerRef.current?.setPage(idx), 50);
+  }, [tabParam]);
 
   return (
     <View className="flex-1 bg-[#FAF9FF]">
