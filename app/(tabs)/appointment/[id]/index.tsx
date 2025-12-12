@@ -129,6 +129,17 @@ export default function AppointmentDetail() {
 
   const status = detail.status; // pending | upcoming | past | cancelled
 
+  const totalAmount = (() => {
+    const p = detail.pricing;
+    if (!p) return 0;
+    if (p.total_amount !== undefined && p.total_amount !== null)
+      return p.total_amount;
+    const price = Number(p.price) || 0;
+    const vat = Number(p.vat) || 0;
+    const after = Number(p.after_hours_fee) || 0;
+    const discount = Number(p.discount) || 0;
+    return price + vat + after - discount;
+  })();
   return (
     <View className="flex-1 bg-[#FAF9FF] px-4 pb-10">
       {/* USER CARD */}
@@ -190,7 +201,7 @@ export default function AppointmentDetail() {
       <View className="flex-row justify-between items-center">
         <Text className="text-[18px] font-[Poppins-SemiBold]">Pricing</Text>
         <Text className="text-[18px] font-[Poppins-Bold] text-[#007BFF]">
-          ${detail.pricing?.amount || "0.00"}
+          ${totalAmount.toFixed(2)}
         </Text>
       </View>
 

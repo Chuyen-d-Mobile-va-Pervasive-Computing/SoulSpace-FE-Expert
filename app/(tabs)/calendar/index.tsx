@@ -222,9 +222,13 @@ export default function CalendarScreen() {
               {/* DOTS */}
               <View className="h-3 flex-row gap-1 mt-1 justify-center items-center">
                 {hasSlots &&
-                  schedules[fullDate].map((_, idx) => (
+                  schedules[fullDate].map((slot) => (
                     <View
-                      key={idx}
+                      key={
+                        slot.schedule_id ??
+                        slot.id ??
+                        `${slot.start_time}-${slot.end_time}`
+                      }
                       className="w-2 h-2 bg-[#7F56D9] rounded-full"
                     />
                   ))}
@@ -249,7 +253,7 @@ export default function CalendarScreen() {
           {schedules[selectedDate]?.length ? (
             schedules[selectedDate].map((slot) => (
               <View
-                key={slot.id}
+                key={slot.schedule_id ?? slot.id}
                 className="border border-purple-400 px-4 py-2 rounded-full flex-row items-center gap-3"
               >
                 <Text className="font-[Poppins-Regular]">
