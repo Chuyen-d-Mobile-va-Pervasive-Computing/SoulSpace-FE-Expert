@@ -78,8 +78,9 @@ export default function AppointmentDetail() {
 
     try {
       setLoadingAction(true);
-      await declineExpertAppointment(String(id), reason);
-      Alert.alert("Success", "Appointment declined.");
+      // For pending appointments, decline should use DELETE
+      await cancelExpertAppointment(String(id), reason);
+      Alert.alert("Success", "Appointment declined (deleted).");
       setShowModal(false);
       loadDetail();
     } catch (err: any) {
@@ -98,8 +99,12 @@ export default function AppointmentDetail() {
 
     try {
       setLoadingAction(true);
-      await cancelExpertAppointment(String(id), reason);
-      Alert.alert("Cancelled", "Appointment has been cancelled.");
+      // For already-approved/upcoming appointments, cancel should use POST (decline action)
+      await declineExpertAppointment(String(id), reason);
+      Alert.alert(
+        "Cancelled",
+        "Appointment has been cancelled (marked declined)."
+      );
       setShowModal(false);
       loadDetail();
     } catch (err: any) {

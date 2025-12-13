@@ -1,7 +1,8 @@
 import AppointmentCard from "@/components/AppointmentCard";
 import { getExpertAppointments } from "@/lib/api";
+import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import PagerView from "react-native-pager-view";
 
@@ -35,7 +36,7 @@ export default function AppointmentScreen() {
     loadAppointments();
   }, []);
 
-  const loadAppointments = async () => {
+  const loadAppointments = useCallback(async () => {
     try {
       const resPending = await getExpertAppointments("pending");
       const resUpcoming = await getExpertAppointments("upcoming");
@@ -47,7 +48,14 @@ export default function AppointmentScreen() {
     } catch (e) {
       console.log("LOAD APPOINTMENTS ERROR:", e);
     }
-  };
+  }, []);
+
+  // Reload appointments whenever this screen gains focus (e.g., navigating from Home)
+  useFocusEffect(
+    useCallback(() => {
+      loadAppointments();
+    }, [loadAppointments])
+  );
 
   // ===== HELPERS =====
   const parseTimeToMinutes = (t: string) => {

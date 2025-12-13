@@ -1,9 +1,10 @@
 import Decor from "@/assets/images/decor.svg";
 import Logo from "@/assets/images/logo.svg";
 import { getExpertDashboard } from "@/lib/api";
+import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { Bell, Settings } from "lucide-react-native";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -22,20 +23,28 @@ export default function HomeScreen() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await getExpertDashboard();
-        setData(res);
-      } catch (err) {
-        console.log(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    load();
+  const loadDashboard = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await getExpertDashboard();
+      setData(res);
+    } catch (err) {
+      console.log(err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
+
+  // Reload dashboard whenever this screen gains focus (e.g., navigating from other tabs)
+  useFocusEffect(
+    useCallback(() => {
+      loadDashboard();
+    }, [loadDashboard])
+  );
 
   if (loading) {
     return (
