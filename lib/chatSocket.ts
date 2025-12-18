@@ -1,96 +1,172 @@
 import * as SecureStore from "expo-secure-store";
 
-let socket: WebSocket | null = null;
+export type Handlers = {
+  onMessage?: (payload: any) => void;
+  onPresence?: (data: { event: "presence.join" | "presence.leave"; payload: any }) => void;
+  onTyping?: (payload: { is_typing: boolean }) => void;
+  onRead?: (payload: { message_id: string }) => void;
+  onPong?: () => void;
+  onClose?: () => void;
+  onError?: (error: any) => void;
+};
 
-export async function connectChatSocket(
-  chatId: string,
-  onMessage: (data: any) => void,
-  onPresence?: (data: any) => void
-) {
-  const token = await SecureStore.getItemAsync("token");
-  if (!token) throw new Error("Missing token");
+class ChatSocket {
+  private socket: WebSocket | null = null;
+  private pingInterval: ReturnType<typeof setInterval> | null = null;
+  private chatId: string | null = null;
+  private handlers: Handlers | null = null;
 
-  const WS_URL = `${(process.env.EXPO_PUBLIC_API_PATH || "").replace(
-    "http",
-    "ws"
-  )}/api/v1/chat/ws/${chatId}?token=${token}`;
+  /* ===================== CONNECT ===================== */
+  async connect(chatId: string, handlers: Handlers): Promise<void> {
+    // Prevent duplicate connection
+    if (this.socket && this.chatId === chatId) {
+      return;
+    }
 
-  socket = new WebSocket(WS_URL);
+    // Cleanup old connection
+    this.disconnect();
 
-  socket.onopen = () => {
-    console.log("🟢 WS connected");
-  };
+    const token = await SecureStore.getItemAsync("token");
+    if (!token) {
+      throw new Error("ChatSocket: Missing token");
+    }
 
-  socket.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
+    const base = process.env.EXPO_PUBLIC_API_PATH || "";
+    const WS_URL = `${base.replace(/^http/, "ws")}/api/v1/chat/ws/${chatId}?token=${token}`;
 
-      if (data.event === "message.new") {
-        onMessage(data.payload);
+    this.chatId = chatId;
+    this.handlers = handlers;
+
+    return new Promise((resolve, reject) => {
+      try {
+        const ws = new WebSocket(WS_URL);
+        this.socket = ws;
+
+        ws.onopen = () => {
+          console.log("🟢 WS connected:", chatId);
+
+          // Keep alive (backend expects ping)
+          this.pingInterval = setInterval(() => {
+            this.sendPing();
+          }, 25000);
+
+          resolve();
+        };
+
+        ws.onmessage = (event) => {
+          this.handleMessage(event.data);
+        };
+
+        ws.onerror = (err) => {
+          console.error("🔴 WS error:", err);
+          this.handlers?.onError?.(err);
+        };
+
+        ws.onclose = () => {
+          console.log("⚪ WS closed:", chatId);
+          this.cleanup();
+          this.handlers?.onClose?.();
+        };
+      } catch (err) {
+        reject(err);
       }
+    });
+  }
 
-      if (
-        data.event === "presence.join" ||
-        data.event === "presence.leave"
-      ) {
-        onPresence?.(data);
+  /* ===================== MESSAGE ROUTER ===================== */
+  private handleMessage(raw: string) {
+    try {
+      const data = JSON.parse(raw);
+      const event = data.event;
+      const payload = data.payload;
+
+      switch (event) {
+        case "message.new":
+          this.handlers?.onMessage?.(payload);
+          break;
+
+        case "presence.join":
+        case "presence.leave":
+          this.handlers?.onPresence?.({ event, payload });
+          break;
+
+        case "typing.start":
+        case "typing.stop":
+          this.handlers?.onTyping?.(payload);
+          break;
+
+        case "message.read":
+          this.handlers?.onRead?.(payload);
+          break;
+
+        case "pong":
+          this.handlers?.onPong?.();
+          break;
+
+        default:
+          console.warn("⚠️ Unknown WS event:", event);
       }
     } catch (e) {
-      console.error("WS parse error", e);
+      console.error("❌ WS parse error:", e);
     }
-  };
+  }
 
-  socket.onclose = () => {
-    console.log("🔴 WS disconnected");
-  };
+  /* ===================== SEND HELPERS ===================== */
+  private send(event: string, payload?: any) {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
 
-  socket.onerror = (e) => {
-    console.error("WS error", e);
-  };
+    this.socket.send(
+      JSON.stringify({
+        event,
+        payload,
+      })
+    );
+  }
+
+  sendMessage(content: string) {
+    if (!content.trim()) return;
+
+    this.send("message.send", {
+      message_type: "text",
+      content,
+    });
+  }
+
+  sendTyping(isTyping: boolean) {
+    this.send(isTyping ? "typing.start" : "typing.stop", {
+      is_typing: isTyping,
+    });
+  }
+
+  sendRead(messageId: string) {
+    if (!messageId) return;
+
+    this.send("message.read", {
+      message_id: messageId,
+    });
+  }
+
+  sendPing() {
+    this.send("ping");
+  }
+
+  /* ===================== DISCONNECT ===================== */
+  disconnect() {
+    if (this.socket) {
+      this.socket.close();
+    }
+    this.cleanup();
+    this.socket = null;
+    this.chatId = null;
+    this.handlers = null;
+  }
+
+  private cleanup() {
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = null;
+    }
+  }
 }
 
-export function sendMessageWS(content: string) {
-  if (!socket) return;
-
-  socket.send(
-    JSON.stringify({
-      event: "message.send",
-      payload: {
-        message_type: "text",
-        content,
-      },
-    })
-  );
-}
-
-export function sendTyping(isTyping: boolean) {
-  if (!socket) return;
-
-  socket.send(
-    JSON.stringify({
-      event: isTyping ? "typing.start" : "typing.stop",
-      payload: { is_typing: isTyping },
-    })
-  );
-}
-
-export function sendRead(messageId: string) {
-  if (!socket) return;
-
-  socket.send(
-    JSON.stringify({
-      event: "message.read",
-      payload: { message_id: messageId },
-    })
-  );
-}
-
-export function sendPing() {
-  if (!socket) return;
-  socket.send(JSON.stringify({ event: "ping" }));
-}
-
-export function disconnectChatSocket() {
-  socket?.close();
-  socket = null;
-}
+export const chatSocket = new ChatSocket();

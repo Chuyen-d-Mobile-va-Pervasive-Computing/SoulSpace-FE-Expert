@@ -218,3 +218,100 @@ export const sendChatMessage = (
       content,
     }),
   });
+
+// UPLOAD expert article image
+export const uploadExpertArticleImage = async (uri: string) => {
+  const token = await SecureStore.getItemAsync("token");
+
+  const formData = new FormData();
+  formData.append("file", {
+    uri,
+    type: "image/jpeg",
+    name: "article.jpg",
+  } as any);
+
+  const res = await fetch(
+    `${BASE_URL}/api/v1/upload/expert/article-image`,
+    {
+      method: "POST",
+      body: formData,
+      headers: {
+        "Content-Type": "multipart/form-data",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    }
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(
+      data?.detail || data?.message || "Upload article image failed"
+    );
+  }
+
+  return data;
+};
+
+interface CreateArticlePayload {
+  title: string;
+  content: string;
+  hashtags?: string;
+  image?: string; // image_url
+}
+
+export const createExpertArticleWithImage = async ({
+  title,
+  content,
+  hashtags,
+  imageUri,
+}: {
+  title: string;
+  content: string;
+  hashtags?: string;
+  imageUri?: string;
+}) => {
+  const token = await SecureStore.getItemAsync("token");
+
+  const formData = new FormData();
+  formData.append("title", title);
+  formData.append("content", content);
+
+  if (hashtags) {
+    formData.append("hashtags", hashtags);
+  }
+
+  if (imageUri) {
+    formData.append("image", {
+      uri: imageUri,
+      name: "article.jpg",
+      type: "image/jpeg",
+    } as any);
+  }
+
+  const res = await fetch(
+    `${BASE_URL}/api/v1/expert/articles/with-image`,
+    {
+      method: "POST",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    }
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(JSON.stringify(data));
+  }
+
+  return data;
+};
+
+// GET expert articles
+export const getExpertArticles = async () => {
+  return api("/api/v1/expert/articles", {
+    method: "GET",
+  });
+};

@@ -79,6 +79,7 @@ export default function ChatScreen() {
                     name: item.partner.full_name,
                     avatar: item.partner.avatar_url,
                     online: String(item.partner.online_status),
+                    scroll: "1",
                   },
                 })
               }
@@ -92,19 +93,18 @@ export default function ChatScreen() {
               {/* CENTER */}
               <View className="flex-1">
                 <Text
-                  className={`text-[15px] text-black ${
-                    hasUnread
-                      ? "font-[Poppins-SemiBold]"
-                      : "font-[Poppins-Medium]"
-                  }`}
+                  className={`text-[15px] text-black font-[Poppins-Medium]`}
                 >
-                  {item.partner.full_name}
+                  {" "}
+                  {item.partner.full_name}{" "}
                 </Text>
 
                 <Text
                   className={`text-[12px] mt-[2px] ${
-                    hasUnread ? "text-black" : "text-gray-600"
-                  } font-[Poppins-Regular]`}
+                    hasUnread
+                      ? "text-black font-[Poppins-SemiBold]"
+                      : "text-gray-600 font-[Poppins-Regular]"
+                  }`}
                   numberOfLines={1}
                 >
                   {item.last_message || "No messages yet"}
@@ -119,14 +119,6 @@ export default function ChatScreen() {
                     minute: "2-digit",
                   })}
                 </Text>
-
-                {hasUnread && (
-                  <View className="bg-[#7F56D9] rounded-full px-3 py-[2px]">
-                    <Text className="text-white font-[Poppins-SemiBold] text-[12px]">
-                      {item.unread_count}
-                    </Text>
-                  </View>
-                )}
               </View>
             </TouchableOpacity>
           );
