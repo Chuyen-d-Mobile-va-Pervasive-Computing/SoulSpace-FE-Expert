@@ -192,3 +192,29 @@ export const declineExpertAppointment = (
     method: "DELETE",
     body: reason ? JSON.stringify({ reason }) : undefined,
   });
+
+
+  // GET all chats
+export const getChats = () =>
+  api("/api/v1/chat/chats", {
+    method: "GET",
+  });
+
+  // GET messages of a chat
+export const getChatMessages = (chatId: string) =>
+  api(`/api/v1/chat/chats/${chatId}/messages`, {
+    method: "GET",
+  });
+
+  // SEND message
+export const sendChatMessage = (
+  chatId: string,
+  content: string
+) =>
+  api(`/api/v1/chat/chats/${chatId}/messages`, {
+    method: "POST",
+    body: JSON.stringify({
+      type: "text",
+      content,
+    }),
+  });

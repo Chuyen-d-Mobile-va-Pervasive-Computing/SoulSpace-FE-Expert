@@ -1,6 +1,12 @@
+import { getChatMessages } from "@/lib/api";
+import {
+  connectChatSocket,
+  disconnectChatSocket,
+  sendMessageWS,
+} from "@/lib/chatSocket";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SendHorizonal } from "lucide-react-native";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -12,128 +18,132 @@ import {
   View,
 } from "react-native";
 
+type Msg = {
+  id: string;
+  text: string;
+  sender_role: "user" | "expert";
+};
+
 export default function ChatDetail() {
   const router = useRouter();
-  const { id } = useLocalSearchParams();
+  const params = useLocalSearchParams<{
+    id: string;
+    name: string;
+    avatar: string;
+    online: string;
+  }>();
+
+  const chatId = params.id;
+  const partnerName = params.name;
+  const partnerAvatar = params.avatar;
+  const isOnline = params.online === "true";
 
   const scrollRef = useRef<ScrollView>(null);
-
-  const expert = {
-    name: "Nguyen Van A",
-    avatar: "https://i.pravatar.cc/100?img=12",
-    status: "offline",
-  };
-
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      text: "Hello! I'm your AI Vocabulary Assistant. How can I help you with words today?",
-      from: "bot",
-    },
-    {
-      id: 2,
-      text: `Add "Revolutionary to Technology collection`,
-      from: "user",
-    },
-    {
-      id: 3,
-      text: `Added "innovate" to your Technology collection!`,
-      from: "bot",
-    },
-    { id: 4, text: `Introducing the app's features`, from: "user" },
-    { id: 5, text: "Our vocabulary learning app", from: "bot" },
-  ]);
-
+  const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
-  const sendMessage = () => {
-    if (!input.trim()) return;
+  // Load history + connect WS
+  useEffect(() => {
+    async function init() {
+      const res = await getChatMessages(chatId);
+      setMessages(
+        res.messages.map((m: any) => ({
+          id: m.id,
+          text: m.content,
+          sender_role: m.sender_role,
+        }))
+      );
 
-    const newMsg = {
-      id: Date.now(),
-      text: input,
-      from: "user",
+      await connectChatSocket(chatId, (payload) => {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: payload.id,
+            text: payload.content,
+            sender_role: payload.sender_role,
+          },
+        ]);
+      });
+    }
+
+    init();
+
+    return () => {
+      disconnectChatSocket();
     };
+  }, [chatId]);
 
-    setMessages((prev) => [...prev, newMsg]);
+  const send = () => {
+    const text = input.trim();
+    if (!text) return;
+
+    // optimistic UI (expert)
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `tmp-${Date.now()}`,
+        text,
+        sender_role: "expert",
+      },
+    ]);
+
+    sendMessageWS(text);
     setInput("");
 
-    // Scroll xuống cuối sau khi gửi
-    setTimeout(() => {
-      scrollRef.current?.scrollToEnd({ animated: true });
-    }, 50);
-
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now() + 1,
-          text: "Got it! I'm processing your request.",
-          from: "bot",
-        },
-      ]);
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
-    }, 800);
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
   };
 
   return (
-    <KeyboardAvoidingView enabled={true} className="flex-1" behavior="padding">
+    <KeyboardAvoidingView className="flex-1" behavior="padding">
       <SafeAreaView className="flex-1 bg-white">
         {/* HEADER */}
         <View className="flex-row items-center px-4 pb-3 border-b border-gray-200">
           <Image
-            source={{ uri: expert.avatar }}
-            className="w-12 h-12 rounded-full mr-3"
+            source={{ uri: partnerAvatar }}
+            className="w-12 h-12 rounded-full mr-3 mt-2"
           />
 
-          <View>
-            <Text className="text-[16px] font-[Poppins-SemiBold] mt-2">
-              {expert.name}
+          <View className="mt-2">
+            <Text className="text-[16px] font-[Poppins-SemiBold]">
+              {partnerName}
             </Text>
-            <Text className="text-gray-500 text-[13px] font-[Poppins-Regular]">
-              {expert.status}
+            <Text className="text-[13px] text-gray-500 font-[Poppins-Regular]">
+              {isOnline ? "online" : "offline"}
             </Text>
           </View>
         </View>
 
-        {/* CHAT LIST */}
+        {/* MESSAGES */}
         <ScrollView
           ref={scrollRef}
           className="flex-1 px-4 pt-2"
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          onContentSizeChange={() => {
-            // auto scroll khi thêm tin nhắn
-            scrollRef.current?.scrollToEnd({ animated: true });
-          }}
-          onLayout={() => {
-            // auto scroll khi keyboard xuất hiện
-            setTimeout(() => {
-              scrollRef.current?.scrollToEnd({ animated: true });
-            }, 50);
-          }}
+          onContentSizeChange={() =>
+            scrollRef.current?.scrollToEnd({ animated: true })
+          }
         >
-          {messages.map((msg) => {
-            const isUser = msg.from === "user";
+          {messages.map((m, idx) => {
+            const isMe = m.sender_role === "expert";
+            const key = `${m.id ?? "msg"}-${idx}`;
             return (
               <View
-                key={msg.id}
-                className={`my-2 max-w-[75%] ${
-                  isUser ? "self-end" : "self-start"
+                key={key}
+                className={`my-2 max-w-[75%] font-[Poppins-Regular] ${
+                  isMe
+                    ? "self-end font-[Poppins-Regular]"
+                    : "self-start font-[Poppins-Regular]"
                 }`}
               >
                 <View
-                  className={`px-4 py-3 rounded-2xl ${
-                    isUser ? "bg-[#7F56D9]" : "bg-gray-200"
+                  className={`px-4 py-3 rounded-2xl font-[Poppins-Regular] ${
+                    isMe ? "bg-[#7F56D9]" : "bg-gray-200"
                   }`}
                 >
                   <Text
                     className={`text-[14px] font-[Poppins-Regular] ${
-                      isUser ? "text-white" : "text-black"
+                      isMe ? "text-white" : "text-black"
                     }`}
                   >
-                    {msg.text}
+                    {m.text}
                   </Text>
                 </View>
               </View>
@@ -141,20 +151,19 @@ export default function ChatDetail() {
           })}
         </ScrollView>
 
-        {/* INPUT AREA — luôn lên theo bàn phím */}
-        <View className="flex-row items-center px-4 py-3 bg-white border-t border-gray-200">
+        {/* INPUT */}
+        <View className="flex-row items-center px-4 py-3 border-t border-gray-200">
           <TextInput
             value={input}
             onChangeText={setInput}
-            placeholder="Type your message ..."
-            className="flex-1 bg-white border border-gray-300 rounded-full px-4 py-2 text-[14px] font-[Poppins-Regular] mr-3"
-            returnKeyType="send"
-            onSubmitEditing={sendMessage}
+            placeholder="Type your message..."
+            className="flex-1 border border-gray-300 rounded-full px-4 py-2 mr-3 font-[Poppins-Regular] text-[15px]"
+            onSubmitEditing={send}
           />
 
           <TouchableOpacity
             className="bg-[#7F56D9] rounded-full p-3"
-            onPress={sendMessage}
+            onPress={send}
           >
             <SendHorizonal size={20} color="white" />
           </TouchableOpacity>

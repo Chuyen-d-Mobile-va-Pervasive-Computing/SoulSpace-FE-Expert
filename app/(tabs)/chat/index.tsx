@@ -1,6 +1,7 @@
+import { getChats } from "@/lib/api";
 import { useRouter } from "expo-router";
 import { Search } from "lucide-react-native";
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Image,
   ScrollView,
@@ -11,56 +12,40 @@ import {
 } from "react-native";
 
 export default function ChatScreen() {
-  const [search, setSearch] = useState("");
   const router = useRouter();
 
-  // MOCK DATA
-  const experts = [
-    {
-      id: 1,
-      name: "Peter Smith",
-      desc: "Worem consectetur adipisicing elit.",
-      avatar: "https://i.pravatar.cc/100?img=12",
-      time: "12.50",
-      unread: 2,
-    },
-    {
-      id: 2,
-      name: "Linda Johnson",
-      desc: "Worem consectetur adipisicing elit.",
-      avatar: "https://i.pravatar.cc/100?img=13",
-      time: "12.50",
-      unread: 0,
-    },
-    {
-      id: 3,
-      name: "James Williams",
-      desc: "Worem consectetur adipisicing elit.",
-      avatar: "https://i.pravatar.cc/100?img=14",
-      time: "12.50",
-      unread: 1,
-    },
-    {
-      id: 4,
-      name: "Patricia Brown",
-      desc: "Worem consectetur adipisicing elit.",
-      avatar: "https://i.pravatar.cc/100?img=15",
-      time: "12.50",
-      unread: 0,
-    },
-    {
-      id: 5,
-      name: "Michael Davis",
-      desc: "Worem consectetur adipisicing elit.",
-      avatar: "https://i.pravatar.cc/100?img=16",
-      time: "12.50",
-      unread: 3,
-    },
-  ];
+  const [search, setSearch] = useState("");
+  const [chats, setChats] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = experts.filter((e) =>
-    e.name.toLowerCase().includes(search.toLowerCase())
-  );
+  useEffect(() => {
+    async function fetchChats() {
+      try {
+        const res = await getChats();
+        setChats(res.data || []);
+      } catch (error) {
+        console.error("Fetch chats error:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchChats();
+  }, []);
+
+  const filteredChats = useMemo(() => {
+    return chats.filter((item) =>
+      item.partner.full_name.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [search, chats]);
+
+  if (loading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-[#FAF9FF]">
+        <Text>Loading chats...</Text>
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1 bg-[#FAF9FF] px-4 pt-6">
@@ -68,7 +53,7 @@ export default function ChatScreen() {
       <View className="flex-row items-center bg-white rounded-full px-4 py-3 shadow-sm mb-4">
         <Search size={18} color="#A1A1A1" />
         <TextInput
-          placeholder="Search expert by name ..."
+          placeholder="Search clients by name ..."
           placeholderTextColor="#C3C3C3"
           value={search}
           onChangeText={setSearch}
@@ -76,51 +61,82 @@ export default function ChatScreen() {
         />
       </View>
 
-      {/* LIST */}
+      {/* CHAT LIST */}
       <ScrollView showsVerticalScrollIndicator={false}>
-        {filtered.map((item) => (
-          <TouchableOpacity
-            key={item.id}
-            className="bg-[#F4ECFF] rounded-2xl px-4 py-3 mb-4 flex-row items-center"
-            onPress={() =>
-              router.push({
-                pathname: "/(tabs)/chat/[id]",
-                params: { id: String(item.id) },
-              })
-            }
-            style={{ minHeight: 80 }}
-          >
-            {/* LEFT SIDE */}
-            <Image
-              source={{ uri: item.avatar }}
-              className="w-12 h-12 rounded-full mr-4"
-            />
+        {filteredChats.map((item) => {
+          const hasUnread = item.unread_count > 0;
 
-            <View className="flex-1">
-              <Text className="text-[15px] font-[Poppins-SemiBold] text-black">
-                {item.name}
-              </Text>
-              <Text className="text-[12px] text-gray-600 font-[Poppins-Regular] mt-[1px]">
-                {item.desc}
-              </Text>
-            </View>
+          return (
+            <TouchableOpacity
+              key={item.chat_id}
+              className="bg-[#F4ECFF] rounded-2xl px-4 py-3 mb-4 flex-row items-center"
+              style={{ minHeight: 80 }}
+              onPress={() =>
+                router.push({
+                  pathname: "/(tabs)/chat/[id]",
+                  params: {
+                    id: item.chat_id,
+                    name: item.partner.full_name,
+                    avatar: item.partner.avatar_url,
+                    online: String(item.partner.online_status),
+                  },
+                })
+              }
+            >
+              {/* AVATAR */}
+              <Image
+                source={{ uri: item.partner.avatar_url }}
+                className="w-12 h-12 rounded-full mr-4"
+              />
 
-            {/* RIGHT SIDE */}
-            <View className="items-end ml-2">
-              <Text className="text-[13px] font-[Poppins-Medium] text-black mb-2">
-                {item.time}
-              </Text>
+              {/* CENTER */}
+              <View className="flex-1">
+                <Text
+                  className={`text-[15px] text-black ${
+                    hasUnread
+                      ? "font-[Poppins-SemiBold]"
+                      : "font-[Poppins-Medium]"
+                  }`}
+                >
+                  {item.partner.full_name}
+                </Text>
 
-              {item.unread > 0 && (
-                <View className="bg-[#7F56D9] rounded-full px-3 py-[2px]">
-                  <Text className="text-white font-[Poppins-SemiBold] text-[12px]">
-                    {item.unread}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
-        ))}
+                <Text
+                  className={`text-[12px] mt-[2px] ${
+                    hasUnread ? "text-black" : "text-gray-600"
+                  } font-[Poppins-Regular]`}
+                  numberOfLines={1}
+                >
+                  {item.last_message || "No messages yet"}
+                </Text>
+              </View>
+
+              {/* RIGHT */}
+              <View className="items-end ml-2">
+                <Text className="text-[12px] text-gray-500 mb-2">
+                  {new Date(item.last_message_at).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </Text>
+
+                {hasUnread && (
+                  <View className="bg-[#7F56D9] rounded-full px-3 py-[2px]">
+                    <Text className="text-white font-[Poppins-SemiBold] text-[12px]">
+                      {item.unread_count}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+
+        {filteredChats.length === 0 && (
+          <View className="items-center mt-10">
+            <Text className="text-gray-500">No chats found</Text>
+          </View>
+        )}
 
         <View className="h-8" />
       </ScrollView>
