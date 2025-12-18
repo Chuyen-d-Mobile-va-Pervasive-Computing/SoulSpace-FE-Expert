@@ -19,6 +19,8 @@ type Msg = {
   id: string;
   text: string;
   sender_role: "user" | "expert";
+  is_read?: boolean;
+  created_at?: string;
 };
 
 export default function ChatDetail() {
@@ -37,6 +39,10 @@ export default function ChatDetail() {
 
   const scrollRef = useRef<ScrollView | null>(null);
   const typingTimeout = useRef<any>(null);
+  const partnerTypingTimeout = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  const refreshInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // State
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -61,6 +67,8 @@ export default function ChatDetail() {
             id: m.id,
             text: m.content,
             sender_role: m.sender_role,
+            is_read: m.is_read,
+            created_at: m.created_at,
           }));
 
           setMessages(history);
@@ -105,7 +113,18 @@ export default function ChatDetail() {
 
             onTyping: (payload: any) => {
               if (!alive) return;
+              // Set typing state and auto-clear after 3s of inactivity
               setPartnerTyping(payload.is_typing);
+              if (partnerTypingTimeout.current) {
+                clearTimeout(partnerTypingTimeout.current);
+                partnerTypingTimeout.current = null;
+              }
+              if (payload.is_typing) {
+                partnerTypingTimeout.current = setTimeout(() => {
+                  setPartnerTyping(false);
+                  partnerTypingTimeout.current = null;
+                }, 3000);
+              }
             },
 
             onPresence: (payload: any) => {
@@ -115,6 +134,76 @@ export default function ChatDetail() {
               if (payload.event === "presence.leave") setPartnerOnline(false);
             },
           });
+
+          // After connecting, send read receipt for any unread messages from partner
+          try {
+            history.forEach((m) => {
+              if (m.sender_role !== "expert" && !m.is_read) {
+                chatSocket.sendRead(m.id);
+              }
+            });
+          } catch (e) {}
+
+          // Start polling REST every 5s to merge any missed messages
+          refreshInterval.current = setInterval(async () => {
+            try {
+              const r = await getChatMessages(chatId);
+              if (!alive) return;
+              const fetched: Msg[] = (r.messages || []).map((m: any) => ({
+                id: m.id,
+                text: m.content,
+                sender_role: m.sender_role,
+                is_read: m.is_read,
+                created_at: m.created_at,
+              }));
+
+              setMessages((prev) => {
+                const next = [...prev];
+                const existingIds = new Set(next.map((p) => p.id));
+
+                const toAppend: Msg[] = [];
+
+                fetched.forEach((f) => {
+                  if (existingIds.has(f.id)) return;
+
+                  // If we have a locally-created temp message that matches this content,
+                  // replace the temp with the server message to avoid duplicates.
+                  const tempIdx = next.findIndex(
+                    (p) =>
+                      p.id?.toString().startsWith("temp-") &&
+                      p.sender_role === "expert" &&
+                      p.text === f.text
+                  );
+
+                  if (tempIdx !== -1) {
+                    next[tempIdx] = f;
+                    existingIds.add(f.id);
+                  } else {
+                    toAppend.push(f);
+                  }
+                });
+
+                if (toAppend.length === 0) return next;
+
+                // send read receipt for any incoming messages from partner
+                toAppend.forEach((m) => {
+                  if (m.sender_role !== "expert") {
+                    try {
+                      chatSocket.sendRead(m.id);
+                    } catch (e) {}
+                  }
+                });
+
+                setTimeout(
+                  () => scrollRef.current?.scrollToEnd({ animated: true }),
+                  50
+                );
+                return [...next, ...toAppend];
+              });
+            } catch (err) {
+              console.error("Polling messages error:", err);
+            }
+          }, 5000);
         } catch (error) {
           console.error("Chat init error:", error);
         }
@@ -127,6 +216,14 @@ export default function ChatDetail() {
         if (typingTimeout.current) clearTimeout(typingTimeout.current);
         chatSocket.sendTyping(false);
         chatSocket.disconnect();
+        if (partnerTypingTimeout.current) {
+          clearTimeout(partnerTypingTimeout.current);
+          partnerTypingTimeout.current = null;
+        }
+        if (refreshInterval.current) {
+          clearInterval(refreshInterval.current);
+          refreshInterval.current = null;
+        }
       };
     }, [chatId])
   );
@@ -240,7 +337,7 @@ export default function ChatDetail() {
             const isMe = m.sender_role === "expert";
             return (
               <View
-                key={m.id}
+                key={`${m.id ?? "msg"}-${index}`}
                 className={`my-1 max-w-[75%] ${
                   isMe ? "self-end" : "self-start"
                 }`}

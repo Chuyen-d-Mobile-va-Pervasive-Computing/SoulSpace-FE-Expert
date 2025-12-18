@@ -19,18 +19,29 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchChats() {
+    let alive = true;
+
+    const fetchChats = async () => {
       try {
         const res = await getChats();
+        if (!alive) return;
+
+        // ✅ CHỈ SET DATA TỪ BE – KHÔNG ĐỤNG GÌ THÊM
         setChats(res.data || []);
       } catch (error) {
         console.error("Fetch chats error:", error);
       } finally {
-        setLoading(false);
+        if (alive) setLoading(false);
       }
-    }
+    };
 
     fetchChats();
+    const poll = setInterval(fetchChats, 5000);
+
+    return () => {
+      alive = false;
+      clearInterval(poll);
+    };
   }, []);
 
   const filteredChats = useMemo(() => {
@@ -63,15 +74,15 @@ export default function ChatScreen() {
 
       {/* CHAT LIST */}
       <ScrollView showsVerticalScrollIndicator={false}>
-        {filteredChats.map((item) => {
-          const hasUnread = item.unread_count > 0;
+        {filteredChats.map((item, index) => {
+          const unreadCount = item.unread_count ?? 0;
 
           return (
             <TouchableOpacity
-              key={item.chat_id}
-              className="bg-[#F4ECFF] rounded-2xl px-4 py-3 mb-4 flex-row items-center"
+              key={`${item.chat_id}-${index}`}
+              className="bg-[#ffffff] rounded-2xl px-4 py-3 mb-4 flex-row items-center"
               style={{ minHeight: 80 }}
-              onPress={() =>
+              onPress={() => {
                 router.push({
                   pathname: "/(tabs)/chat/[id]",
                   params: {
@@ -81,8 +92,8 @@ export default function ChatScreen() {
                     online: String(item.partner.online_status),
                     scroll: "1",
                   },
-                })
-              }
+                });
+              }}
             >
               {/* AVATAR */}
               <Image
@@ -92,16 +103,13 @@ export default function ChatScreen() {
 
               {/* CENTER */}
               <View className="flex-1">
-                <Text
-                  className={`text-[15px] text-black font-[Poppins-Medium]`}
-                >
-                  {" "}
-                  {item.partner.full_name}{" "}
+                <Text className="text-[15px] text-black font-[Poppins-Medium]">
+                  {item.partner.full_name}
                 </Text>
 
                 <Text
                   className={`text-[12px] mt-[2px] ${
-                    hasUnread
+                    unreadCount > 0
                       ? "text-black font-[Poppins-SemiBold]"
                       : "text-gray-600 font-[Poppins-Regular]"
                   }`}
@@ -119,6 +127,14 @@ export default function ChatScreen() {
                     minute: "2-digit",
                   })}
                 </Text>
+
+                {unreadCount > 0 && (
+                  <View className="mt-1 bg-[#EF4444] rounded-full px-2 py-1">
+                    <Text className="text-[12px] text-white font-[Poppins-SemiBold]">
+                      {unreadCount}
+                    </Text>
+                  </View>
+                )}
               </View>
             </TouchableOpacity>
           );
