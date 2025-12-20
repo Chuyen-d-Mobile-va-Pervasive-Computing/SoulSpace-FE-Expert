@@ -350,3 +350,33 @@ export const deleteExpertArticle = (articleId: string) =>
   api(`/api/v1/expert/articles/${articleId}`, {
     method: "DELETE",
   });
+
+  // LIKE anon post
+export const likeAnonPost = (post_id: string) =>
+  api(`/api/v1/anon-likes/${post_id}`, {
+    method: "POST",
+  });
+
+// UNLIKE anon post
+export const unlikeAnonPost = (post_id: string) =>
+  api(`/api/v1/anon-likes/${post_id}`, {
+    method: "DELETE",
+  });
+
+  // CREATE anon comment (always anonymous)
+export const createAnonComment = (post_id: string, content: string) =>
+  api("/api/v1/anon-comments/", {
+    method: "POST",
+    body: JSON.stringify({
+      post_id,
+      content,
+      is_preset: false,
+      is_anonymous: false,
+    }),
+  });
+
+  // DELETE anon comment
+export const deleteAnonComment = (comment_id: string) =>
+  api(`/api/v1/anon-comments/${comment_id}`, {
+    method: "DELETE",
+  });

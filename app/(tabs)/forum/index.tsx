@@ -33,6 +33,51 @@ type Article = {
   type?: "user_post" | "expert_article";
 };
 
+type TruncatedTextProps = {
+  text?: string;
+  className?: string;
+  limit?: number;
+};
+
+const TruncatedText: React.FC<TruncatedTextProps> = ({
+  text = "",
+  className = "font-[Poppins-Regular]",
+  limit = 200,
+}) => {
+  const [expanded, setExpanded] = useState(false);
+
+  if (!text) return null;
+
+  const shouldTruncate = text.length > limit;
+  const display = !expanded && shouldTruncate ? text.slice(0, limit) : text;
+
+  return (
+    <Text className={className}>
+      {display}
+      {shouldTruncate && !expanded && (
+        <>
+          ...{" "}
+          <Text
+            className="text-[#7F56D9] font-[Poppins-Medium]"
+            onPress={() => setExpanded(true)}
+          >
+            View more
+          </Text>
+        </>
+      )}
+      {shouldTruncate && expanded && (
+        <Text
+          className="text-[#7F56D9] font-[Poppins-Medium]"
+          onPress={() => setExpanded(false)}
+        >
+          {" "}
+          View less
+        </Text>
+      )}
+    </Text>
+  );
+};
+
 export default function ForumScreen() {
   const router = useRouter();
   const pagerRef = useRef<PagerView>(null);
@@ -222,9 +267,10 @@ export default function ForumScreen() {
                     )}
 
                     {/* CONTENT */}
-                    <Text className="font-[Poppins-Regular]">
-                      {item.content}
-                    </Text>
+                    <TruncatedText
+                      text={item.content}
+                      className="font-[Poppins-Regular]"
+                    />
 
                     {/* HASHTAGS */}
                     {item.hashtags?.length > 0 && (
@@ -350,9 +396,10 @@ export default function ForumScreen() {
                     </View>
                   )}
 
-                  <Text className="mt-2 text-gray-600 font-[Poppins-Regular]">
-                    {item.content}
-                  </Text>
+                  <TruncatedText
+                    text={item.content}
+                    className="mt-2 text-gray-600 font-[Poppins-Regular]"
+                  />
 
                   {item.image_url && (
                     <Image
@@ -422,9 +469,10 @@ export default function ForumScreen() {
                     </View>
                   )}
 
-                  <Text className="mt-2 font-[Poppins-Regular]">
-                    {item.content}
-                  </Text>
+                  <TruncatedText
+                    text={item.content}
+                    className="mt-2 font-[Poppins-Regular]"
+                  />
 
                   {item.image_url && (
                     <Image
