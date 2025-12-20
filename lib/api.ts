@@ -290,7 +290,7 @@ export const createExpertArticleWithImage = async ({
   }
 
   const res = await fetch(
-    `${BASE_URL}/api/v1/expert/articles/with-image`,
+    `${BASE_URL}/api/v1/expert/articles`,
     {
       method: "POST",
       headers: {
@@ -311,7 +311,42 @@ export const createExpertArticleWithImage = async ({
 
 // GET expert articles
 export const getExpertArticles = async () => {
-  return api("/api/v1/expert/articles", {
+  return api("/api/v1/expert/articles/my-articles", {
     method: "GET",
   });
 };
+
+// GET newsfeed (Home)
+export const getFeed = (limit: number = 20) =>
+  api(`/api/v1/expert/articles/feed?limit=${limit}`, {
+    method: "GET",
+  });
+
+export const getAnonPostDetail = (post_id: string) =>
+  api(`/api/v1/anon-posts/${post_id}`, {
+    method: "GET",
+  });
+
+  // GET anon post comments
+export const getAnonPostComments = (post_id: string) =>
+  api(`/api/v1/anon-comments/${post_id}`, {
+    method: "GET",
+  });
+
+// GET users who liked anon post
+export const getAnonPostLikes = (post_id: string) =>
+  api(`/api/v1/anon-likes/${post_id}/users`, {
+    method: "GET",
+  });
+
+// GET expert article detail
+export const getExpertArticleDetail = (articleId: string) =>
+  api(`/api/v1/expert/articles/${articleId}`, {
+    method: "GET",
+  });
+
+  // DELETE expert article
+export const deleteExpertArticle = (articleId: string) =>
+  api(`/api/v1/expert/articles/${articleId}`, {
+    method: "DELETE",
+  });

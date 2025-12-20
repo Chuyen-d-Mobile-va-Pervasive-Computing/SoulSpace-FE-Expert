@@ -1,0 +1,270 @@
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { ArrowLeft, Heart, MessageCircle, Trash2 } from "lucide-react-native";
+import React, { useEffect, useState } from "react";
+import {
+  Alert,
+  Image,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+
+import {
+  deleteExpertArticle,
+  getAnonPostComments,
+  getAnonPostDetail,
+  getAnonPostLikes,
+  getExpertArticleDetail,
+} from "@/lib/api";
+
+type DetailType = "user_post" | "expert_article";
+type ArticleStatus = "pending" | "approved";
+
+export default function ArticleDetail() {
+  const router = useRouter();
+
+  const { id, type, status } = useLocalSearchParams<{
+    id: string;
+    type: DetailType;
+    status?: ArticleStatus;
+  }>();
+
+  const [post, setPost] = useState<any>(null);
+  const [comments, setComments] = useState<any[]>([]);
+  const [likes, setLikes] = useState<any[]>([]);
+  const [showLikes, setShowLikes] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const isPendingExpert = type === "expert_article" && status === "pending";
+
+  /* ===================== FETCH DETAIL ===================== */
+
+  useEffect(() => {
+    if (!id || !type) return;
+
+    const fetchDetail = async () => {
+      try {
+        if (type === "user_post") {
+          const [postRes, commentRes] = await Promise.all([
+            getAnonPostDetail(id),
+            getAnonPostComments(id),
+          ]);
+
+          setPost(postRes);
+          setComments(commentRes);
+        }
+
+        if (type === "expert_article") {
+          const res = await getExpertArticleDetail(id);
+          setPost(res);
+          setComments([]);
+        }
+      } catch (err) {
+        console.error("Fetch detail failed", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDetail();
+  }, [id, type]);
+
+  /* ===================== HANDLERS ===================== */
+
+  const handleShowLikes = async () => {
+    if (type !== "user_post") return;
+
+    try {
+      const res = await getAnonPostLikes(id);
+      setLikes(res);
+      setShowLikes(true);
+    } catch (err) {
+      console.error("Fetch likes failed", err);
+    }
+  };
+
+  const handleDelete = () => {
+    Alert.alert("Delete Post", "Are you sure you want to delete this post?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteExpertArticle(id);
+            router.back();
+          } catch (err) {
+            Alert.alert("Error", "Delete failed");
+          }
+        },
+      },
+    ]);
+  };
+
+  /* ===================== LOADING / ERROR ===================== */
+
+  if (loading) {
+    return (
+      <View className="flex-1 justify-center items-center bg-[#FAF9FF]">
+        <Text className="text-gray-400">Loading...</Text>
+      </View>
+    );
+  }
+
+  if (!post) {
+    return (
+      <View className="flex-1 justify-center items-center bg-[#FAF9FF]">
+        <Text className="text-gray-400">Post not found</Text>
+      </View>
+    );
+  }
+
+  /* ===================== UI ===================== */
+
+  return (
+    <View className="flex-1 bg-[#FAF9FF]">
+      {/* HEADER */}
+      <View className="flex-row items-center px-4 pt-12 pb-4 bg-white shadow-sm">
+        <TouchableOpacity onPress={() => router.back()}>
+          <ArrowLeft size={22} color="#7F56D9" />
+        </TouchableOpacity>
+        <Text className="ml-4 text-lg font-[Poppins-SemiBold]">Detail</Text>
+      </View>
+
+      <ScrollView className="px-4 pb-32">
+        {/* AUTHOR */}
+        <View className="flex-row items-center mt-6">
+          {type === "expert_article" && post.expert_avatar ? (
+            <Image
+              source={{ uri: post.expert_avatar }}
+              className="w-10 h-10 rounded-full mr-3"
+            />
+          ) : (
+            <View className="w-10 h-10 rounded-full bg-gray-300 mr-3 justify-center items-center">
+              <Text className="text-xs text-gray-600">?</Text>
+            </View>
+          )}
+
+          <View>
+            <Text className="font-[Poppins-SemiBold] text-[16px]">
+              {type === "expert_article"
+                ? post.expert_name
+                : post.author_name || "Ẩn danh"}
+            </Text>
+            <Text className="text-xs text-gray-500">
+              {type === "expert_article" ? "Expert" : "Anonymous"}
+            </Text>
+          </View>
+        </View>
+
+        {/* TITLE (expert only) */}
+        {type === "expert_article" && (
+          <Text className="mt-6 text-[18px] font-[Poppins-Bold]">
+            {post.title}
+          </Text>
+        )}
+
+        {/* CONTENT */}
+        <Text className="mt-4 text-gray-800 leading-6 font-[Poppins-Regular]">
+          {post.content}
+        </Text>
+
+        {/* HASHTAGS */}
+        {post.hashtags?.length > 0 && (
+          <View className="flex-row flex-wrap mt-4">
+            {post.hashtags.map((tag: string, index: number) => (
+              <View
+                key={index}
+                className="bg-[#E0D7F9] px-3 py-1 rounded-full mr-2 mb-2"
+              >
+                <Text className="text-[#7F56D9] text-xs font-[Poppins-SemiBold]">
+                  {tag}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* IMAGE */}
+        {post.image_url && (
+          <Image
+            source={{ uri: post.image_url }}
+            className="w-full h-52 rounded-2xl mt-6"
+          />
+        )}
+
+        {/* LIKE & COMMENT */}
+        <View className="flex-row items-center mt-6 border-t border-gray-100 pt-4">
+          {type === "user_post" && (
+            <TouchableOpacity
+              className="flex-row items-center mr-8"
+              onPress={handleShowLikes}
+            >
+              <Heart size={20} color={post.is_liked ? "#7F56D9" : "#B4B4B4"} />
+              <Text className="ml-2 font-[Poppins-Medium]">
+                {post.like_count}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          <View className="flex-row items-center">
+            <MessageCircle size={20} color="#7F56D9" />
+            <Text className="ml-2 font-[Poppins-Medium]">
+              {post.comment_count}
+            </Text>
+          </View>
+        </View>
+
+        {/* LIKES LIST (user_post only) */}
+        {type === "user_post" && showLikes && likes.length > 0 && (
+          <View className="mt-6">
+            <Text className="font-[Poppins-SemiBold] mb-2">Liked by</Text>
+            {likes.map((u) => (
+              <View key={u.user_id} className="flex-row items-center mb-2">
+                <View className="w-8 h-8 rounded-full bg-gray-300 mr-3" />
+                <Text className="font-[Poppins-Regular]">{u.username}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* COMMENTS (user_post only) */}
+        {type === "user_post" && comments.length > 0 && (
+          <View className="mt-8">
+            <Text className="font-[Poppins-SemiBold] mb-3">Comments</Text>
+
+            {comments.map((c) => (
+              <View
+                key={c._id}
+                className="bg-white rounded-xl p-3 mb-3 shadow-sm"
+              >
+                <Text className="font-[Poppins-SemiBold]">
+                  {c.username || "Anonymous"}
+                </Text>
+                <Text className="mt-1 text-gray-700 font-[Poppins-Regular]">
+                  {c.content}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* DELETE POST (pending expert only) */}
+        {isPendingExpert && (
+          <TouchableOpacity
+            onPress={handleDelete}
+            className="mt-10 mb-6 bg-red-500 py-4 rounded-xl"
+          >
+            <View className="flex-row justify-center items-center">
+              <Trash2 size={18} color="white" />
+              <Text className="ml-2 text-white font-[Poppins-SemiBold]">
+                Delete Post
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+    </View>
+  );
+}

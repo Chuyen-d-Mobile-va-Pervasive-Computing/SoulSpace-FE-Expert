@@ -1,8 +1,11 @@
+import { getExpertArticles, getFeed } from "@/lib/api";
 import { useRouter } from "expo-router";
 import {
   Bookmark,
   Clock,
+  Heart,
   Home,
+  MessageCircle,
   MoreVertical,
   Search,
 } from "lucide-react-native";
@@ -17,17 +20,6 @@ import {
 } from "react-native";
 import PagerView from "react-native-pager-view";
 
-import { getExpertArticles } from "@/lib/api";
-
-/* ===================== TYPES ===================== */
-
-type MockPost = {
-  id: number;
-  user: string;
-  time: number;
-  content: string;
-};
-
 type Article = {
   _id: string;
   title: string;
@@ -35,33 +27,11 @@ type Article = {
   image_url?: string;
   status: "pending" | "approved";
   created_at: string;
+  hashtags?: string[];
+  like_count: number;
+  comment_count: number;
+  type?: "user_post" | "expert_article";
 };
-
-/* ===================== MOCK HOME DATA ===================== */
-
-const mockPosts: MockPost[] = [
-  {
-    id: 1,
-    user: "Anonymous 264",
-    time: 60,
-    content:
-      "Today I felt anxious at work, but writing it down here makes me feel a bit lighter.",
-  },
-  {
-    id: 2,
-    user: "Anonymous 512",
-    time: 10,
-    content: "Trying to stay positive today. Hope everyone has a good week!",
-  },
-  {
-    id: 3,
-    user: "Anonymous 118",
-    time: 120,
-    content: "Any tips on handling burnout? Feeling exhausted lately.",
-  },
-];
-
-/* ===================== COMPONENT ===================== */
 
 export default function ForumScreen() {
   const router = useRouter();
@@ -77,6 +47,14 @@ export default function ForumScreen() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [pendingArticles, setPendingArticles] = useState<Article[]>([]);
   const [approvedArticles, setApprovedArticles] = useState<Article[]>([]);
+  // HOME FEED
+  const PAGE_SIZE = 20;
+
+  const [feedAll, setFeedAll] = useState<any[]>([]);
+  const [feedPage, setFeedPage] = useState<any[]>([]);
+  const [pageHome, setPageHome] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loadingHome, setLoadingHome] = useState(false);
 
   /* ===================== FETCH API (ONLY ONCE) ===================== */
 
@@ -99,6 +77,33 @@ export default function ForumScreen() {
     setPendingArticles(articles.filter((a) => a.status === "pending"));
     setApprovedArticles(articles.filter((a) => a.status === "approved"));
   }, [articles]);
+
+  /* ===================== SPLIT DATA ===================== */
+
+  useEffect(() => {
+    if (page !== 0) return;
+
+    const fetchFeed = async () => {
+      try {
+        setLoadingHome(true);
+        const res = await getFeed(100); // lấy full 100 bài
+        setFeedAll(res);
+        setTotalPages(Math.ceil(res.length / PAGE_SIZE));
+      } catch (err) {
+        console.error("Fetch feed failed", err);
+      } finally {
+        setLoadingHome(false);
+      }
+    };
+
+    fetchFeed();
+  }, [page]);
+
+  useEffect(() => {
+    const start = (pageHome - 1) * PAGE_SIZE;
+    const end = start + PAGE_SIZE;
+    setFeedPage(feedAll.slice(start, end));
+  }, [feedAll, pageHome]);
 
   /* ===================== UI ===================== */
 
@@ -153,24 +158,144 @@ export default function ForumScreen() {
         initialPage={0}
         onPageSelected={(e) => setPage(e.nativeEvent.position)}
       >
-        {/* ===================== HOME (MOCK) ===================== */}
-        <ScrollView key="home" className="mt-4 pb-24">
-          {mockPosts
-            .filter((p) =>
-              p.content.toLowerCase().includes(search.toLowerCase())
-            )
-            .map((item) => (
-              <View
-                key={item.id}
-                className="bg-white rounded-2xl p-4 mb-3 shadow-sm"
-              >
-                <Text className="font-[Poppins-SemiBold]">{item.user}</Text>
-                <Text className="text-xs text-gray-500">
-                  {item.time} minutes ago
-                </Text>
-                <Text className="mt-3">{item.content}</Text>
-              </View>
-            ))}
+        {/* ===================== HOME ===================== */}
+        <ScrollView key="home" className="mt-4 pb-32">
+          {loadingHome && (
+            <Text className="text-center text-gray-400 mt-6">Loading...</Text>
+          )}
+
+          {!loadingHome &&
+            feedPage
+              .filter((item) =>
+                item.content?.toLowerCase().includes(search.toLowerCase())
+              )
+              .map((item) => (
+                <TouchableOpacity
+                  key={item._id}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/forum/article-detail",
+                      params: {
+                        id: item._id,
+                        type: item.type, // "user_post" | "expert_article"
+                      },
+                    })
+                  }
+                >
+                  <View
+                    key={item._id}
+                    className="bg-white rounded-2xl p-4 mb-3 shadow-sm"
+                  >
+                    {/* AUTHOR */}
+                    <View className="flex-row items-center mb-2">
+                      <View className="w-9 h-9 rounded-full bg-gray-200 mr-3 justify-center items-center">
+                        {item.author_avatar ? (
+                          <Image
+                            source={{ uri: item.author_avatar }}
+                            className="w-9 h-9 rounded-full"
+                          />
+                        ) : (
+                          <Text className="text-xs text-gray-500 font-[Poppins-SemiBold]">
+                            {item.author_name?.[0]}
+                          </Text>
+                        )}
+                      </View>
+
+                      <View className="flex-1">
+                        <Text className="font-[Poppins-SemiBold] text-[16px]">
+                          {item.author_name}
+                        </Text>
+
+                        {item.author_role === "expert" && (
+                          <Text className="text-[14px] text-[#7F56D9] font-[Poppins-Regular]">
+                            Expert
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+
+                    {/* TITLE (chỉ expert_article có) */}
+                    {item.title && (
+                      <Text className="font-[Poppins-Bold] text-[16px] mb-1">
+                        {item.title}
+                      </Text>
+                    )}
+
+                    {/* CONTENT */}
+                    <Text className="font-[Poppins-Regular]">
+                      {item.content}
+                    </Text>
+
+                    {/* HASHTAGS */}
+                    {item.hashtags?.length > 0 && (
+                      <View className="flex-row flex-wrap mt-3">
+                        {item.hashtags.map((tag: string, index: number) => (
+                          <View
+                            key={index}
+                            className="bg-[#E0D7F9] px-3 py-1 rounded-full mr-2 mb-2"
+                          >
+                            <Text className="text-[#7F56D9] text-xs font-[Poppins-SemiBold]">
+                              {tag}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+
+                    {/* IMAGE */}
+                    {item.image_url && (
+                      <Image
+                        source={{ uri: item.image_url }}
+                        className="w-full h-40 rounded-xl mt-4"
+                      />
+                    )}
+
+                    {/* LIKE & COMMENT */}
+                    <View className="flex-row items-center mt-4 border-t border-gray-100 pt-3">
+                      <View className="flex-row items-center mr-6">
+                        <Heart size={18} color="#7F56D9" />
+                        <Text className="ml-2 text-sm font-[Poppins-Medium]">
+                          {item.like_count}
+                        </Text>
+                      </View>
+
+                      <View className="flex-row items-center">
+                        <MessageCircle size={18} color="#7F56D9" />
+                        <Text className="ml-2 text-sm font-[Poppins-Medium]">
+                          {item.comment_count}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+
+          {/* PAGINATION */}
+          <View className="flex-row justify-center items-center mt-4 mb-8">
+            <TouchableOpacity
+              disabled={pageHome === 1}
+              onPress={() => setPageHome((p) => p - 1)}
+              className={`px-4 py-2 rounded-xl mr-4 ${
+                pageHome === 1 ? "bg-gray-200" : "bg-gray-100"
+              }`}
+            >
+              <Text className="font-[Poppins-Regular]">Prev</Text>
+            </TouchableOpacity>
+
+            <Text className="text-sm font-[Poppins-Medium]">
+              {pageHome} / {totalPages}
+            </Text>
+
+            <TouchableOpacity
+              disabled={pageHome === totalPages}
+              onPress={() => setPageHome((p) => p + 1)}
+              className={`px-4 py-2 rounded-xl ml-4 ${
+                pageHome === totalPages ? "bg-gray-200" : "bg-gray-100"
+              }`}
+            >
+              <Text className="font-[Poppins-Regular]">Next</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
 
         {/* ===================== PENDING (API) ===================== */}
@@ -186,34 +311,65 @@ export default function ForumScreen() {
                 a.content.toLowerCase().includes(search.toLowerCase())
             )
             .map((item) => (
-              <View
+              <TouchableOpacity
                 key={item._id}
-                className="bg-white rounded-2xl p-4 mb-4 shadow-sm border border-[#EAEAEA]"
+                onPress={() =>
+                  router.push({
+                    pathname: "/forum/article-detail",
+                    params: {
+                      id: item._id,
+                      type: "expert_article",
+                      status: "pending",
+                    },
+                  })
+                }
               >
-                <View className="flex-row justify-between">
-                  <Text className="font-[Poppins-SemiBold] text-[16px]">
-                    {item.title}
-                  </Text>
-                  <MoreVertical size={18} />
-                </View>
-
-                <Text className="mt-2 text-gray-600">{item.content}</Text>
-
-                {item.image_url && (
-                  <Image
-                    source={{ uri: item.image_url }}
-                    className="w-full h-40 rounded-xl mt-4"
-                  />
-                )}
-
-                <View className="items-end mt-4">
-                  <View className="bg-[#E9D8FD] px-4 py-1 rounded-xl">
-                    <Text className="text-[#7F56D9] text-xs font-semibold">
-                      Pending
+                <View
+                  key={item._id}
+                  className="bg-white rounded-2xl p-4 mb-4 shadow-sm border border-[#EAEAEA]"
+                >
+                  <View className="flex-row justify-between">
+                    <Text className="font-[Poppins-SemiBold] text-[16px]">
+                      {item.title}
                     </Text>
+                    <MoreVertical size={18} />
+                  </View>
+
+                  {item.hashtags && item.hashtags.length > 0 && (
+                    <View className="flex-row flex-wrap mt-3">
+                      {item.hashtags.map((tag, index) => (
+                        <View
+                          key={index}
+                          className="bg-[#E0D7F9] px-3 py-1 rounded-full mr-2 mb-2"
+                        >
+                          <Text className="text-[#7F56D9] text-xs font-[Poppins-SemiBold]">
+                            {tag}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  <Text className="mt-2 text-gray-600 font-[Poppins-Regular]">
+                    {item.content}
+                  </Text>
+
+                  {item.image_url && (
+                    <Image
+                      source={{ uri: item.image_url }}
+                      className="w-full h-40 rounded-xl mt-4"
+                    />
+                  )}
+
+                  <View className="items-end mt-4">
+                    <View className="bg-[#E0D7F9] px-4 py-1 rounded-xl">
+                      <Text className="text-[#7F56D9] text-xs font-[Poppins-SemiBold]">
+                        Pending
+                      </Text>
+                    </View>
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
         </ScrollView>
 
@@ -230,22 +386,71 @@ export default function ForumScreen() {
                 a.content.toLowerCase().includes(search.toLowerCase())
             )
             .map((item) => (
-              <View
+              <TouchableOpacity
                 key={item._id}
-                className="bg-white rounded-2xl p-4 mb-3 shadow-sm"
+                onPress={() =>
+                  router.push({
+                    pathname: "/forum/article-detail",
+                    params: {
+                      id: item._id,
+                      type: "expert_article",
+                      status: "approved",
+                    },
+                  })
+                }
               >
-                <Text className="font-[Poppins-SemiBold] text-[16px]">
-                  {item.title}
-                </Text>
-                <Text className="mt-2">{item.content}</Text>
+                <View
+                  key={item._id}
+                  className="bg-white rounded-2xl p-4 mb-3 shadow-sm"
+                >
+                  <Text className="font-[Poppins-SemiBold] text-[16px]">
+                    {item.title}
+                  </Text>
 
-                {item.image_url && (
-                  <Image
-                    source={{ uri: item.image_url }}
-                    className="w-full h-40 rounded-xl mt-4"
-                  />
-                )}
-              </View>
+                  {item.hashtags && item.hashtags.length > 0 && (
+                    <View className="flex-row flex-wrap mt-3">
+                      {item.hashtags.map((tag, index) => (
+                        <View
+                          key={index}
+                          className="bg-[#E0D7F9] px-3 py-1 rounded-full mr-2 mb-2"
+                        >
+                          <Text className="text-[#7F56D9] text-xs font-[Poppins-SemiBold]">
+                            {tag}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  <Text className="mt-2 font-[Poppins-Regular]">
+                    {item.content}
+                  </Text>
+
+                  {item.image_url && (
+                    <Image
+                      source={{ uri: item.image_url }}
+                      className="w-full h-40 rounded-xl mt-4"
+                    />
+                  )}
+                  <View className="flex-row items-center mt-4  pt-3">
+                    {/* LIKE */}
+                    <View className="flex-row items-center mr-6">
+                      <Heart size={18} color="#7F56D9" />
+                      <Text className="ml-2 text-sm text-gray-700 font-[Poppins-Medium]">
+                        {item.like_count}
+                      </Text>
+                    </View>
+
+                    {/* COMMENT */}
+                    <View className="flex-row items-center">
+                      <MessageCircle size={18} color="#7F56D9" />
+                      <Text className="ml-2 text-sm text-gray-700 font-[Poppins-Medium]">
+                        {item.comment_count}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </TouchableOpacity>
             ))}
         </ScrollView>
       </PagerView>
