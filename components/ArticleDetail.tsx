@@ -2,7 +2,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Heart, MessageCircle, Trash2 } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
   Dimensions,
   Image,
   KeyboardAvoidingView,
@@ -53,6 +52,61 @@ export default function ArticleDetail() {
   const [imageModalVisible, setImageModalVisible] = useState(false);
   const [modalImageUrl, setModalImageUrl] = useState<string | null>(null);
 
+  // popup modal state (info and confirm)
+  const [popupVisible, setPopupVisible] = useState(false);
+  const [popupTitle, setPopupTitle] = useState<string | null>(null);
+  const [popupMessage, setPopupMessage] = useState<string | null>(null);
+  const [popupIsConfirm, setPopupIsConfirm] = useState(false);
+  const [popupConfirmLoading, setPopupConfirmLoading] = useState(false);
+  const [popupDestructive, setPopupDestructive] = useState(false);
+  const [popupWarningText, setPopupWarningText] = useState<string | null>(null);
+  const popupConfirmRef = React.useRef<(() => Promise<void>) | null>(null);
+
+  const showInfoPopup = (title: string, message?: string) => {
+    setPopupTitle(title);
+    setPopupMessage(message || null);
+    setPopupIsConfirm(false);
+    setPopupDestructive(false);
+    setPopupWarningText(null);
+    popupConfirmRef.current = null;
+    setPopupVisible(true);
+  };
+
+  type ConfirmOptions = { destructive?: boolean; warningText?: string };
+
+  const showConfirmPopup = (
+    title: string,
+    message: string,
+    onConfirm: () => Promise<void>,
+    options?: ConfirmOptions
+  ) => {
+    setPopupTitle(title);
+    setPopupMessage(message);
+    setPopupIsConfirm(true);
+    setPopupDestructive(!!options?.destructive);
+    setPopupWarningText(options?.warningText || null);
+    popupConfirmRef.current = onConfirm;
+    setPopupVisible(true);
+  };
+
+  const handlePopupConfirm = async () => {
+    if (!popupConfirmRef.current) {
+      setPopupVisible(false);
+      return;
+    }
+
+    try {
+      setPopupConfirmLoading(true);
+      await popupConfirmRef.current();
+    } catch (err) {
+      console.error("Popup confirm action failed", err);
+      showInfoPopup("Error", "Action failed");
+    } finally {
+      setPopupConfirmLoading(false);
+      setPopupVisible(false);
+    }
+  };
+
   const openImage = (url: string) => {
     setModalImageUrl(url);
     setImageModalVisible(true);
@@ -64,7 +118,7 @@ export default function ArticleDetail() {
   };
 
   const handleToggleLike = async () => {
-    if (type !== "user_post") return;
+    if (!post) return;
 
     try {
       if (post.is_liked) {
@@ -83,7 +137,7 @@ export default function ArticleDetail() {
         }));
       }
     } catch (err) {
-      Alert.alert("Error", "Like failed");
+      showInfoPopup("Error", "Like failed");
     }
   };
 
@@ -93,9 +147,24 @@ export default function ArticleDetail() {
     try {
       setSubmitting(true);
 
+      // Try creating anon comment for both anon posts and expert articles
       const newComment = await createAnonComment(id, commentText);
 
+      // optimistic: mark the returned comment as owned so trash icon appears immediately
+      if (newComment && typeof newComment === "object") {
+        (newComment as any).is_owner = true;
+      }
+
       setComments((prev) => [newComment, ...prev]);
+
+      // refresh comments from server to ensure correct flags/order (non-blocking)
+      try {
+        const fresh = await getAnonPostComments(id);
+        if (Array.isArray(fresh)) setComments(fresh);
+      } catch (err) {
+        // ignore refresh errors, optimistic list remains
+        console.error("Refresh comments failed", err);
+      }
       setPost((prev: any) => ({
         ...prev,
         comment_count: prev.comment_count + 1,
@@ -103,32 +172,30 @@ export default function ArticleDetail() {
 
       setCommentText("");
     } catch (err) {
-      Alert.alert("Error", "Comment failed");
+      showInfoPopup("Error", "Comment failed");
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDeleteComment = (comment_id: string) => {
-    Alert.alert("Delete Comment", "Are you sure?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteAnonComment(comment_id);
-            setComments((prev) => prev.filter((c) => c._id !== comment_id));
-            setPost((prev: any) => ({
-              ...prev,
-              comment_count: prev.comment_count - 1,
-            }));
-          } catch {
-            Alert.alert("Error", "Delete failed");
-          }
-        },
+    showConfirmPopup(
+      "Delete Comment",
+      "Are you sure? This action cannot be undone.",
+      async () => {
+        try {
+          await deleteAnonComment(comment_id);
+          setComments((prev) => prev.filter((c) => c._id !== comment_id));
+          setPost((prev: any) => ({
+            ...prev,
+            comment_count: prev.comment_count - 1,
+          }));
+        } catch (err) {
+          showInfoPopup("Error", "Delete failed");
+        }
       },
-    ]);
+      { destructive: true }
+    );
   };
 
   /* ===================== FETCH DETAIL ===================== */
@@ -149,9 +216,15 @@ export default function ArticleDetail() {
         }
 
         if (type === "expert_article") {
-          const res = await getExpertArticleDetail(id);
+          // fetch expert article detail and try to fetch comments/likes using anon endpoints
+          const [res, commentRes] = await Promise.all([
+            getExpertArticleDetail(id),
+            // comments for articles may be exposed via anon-comments endpoint
+            getAnonPostComments(id).catch(() => []),
+          ]);
+
           setPost(res);
-          setComments([]);
+          setComments(commentRes || []);
         }
       } catch (err) {
         console.error("Fetch detail failed", err);
@@ -166,33 +239,31 @@ export default function ArticleDetail() {
   /* ===================== HANDLERS ===================== */
 
   const handleShowLikes = async () => {
-    if (type !== "user_post") return;
-
     try {
       const res = await getAnonPostLikes(id);
-      setLikes(res);
+      setLikes(res || []);
       setShowLikes(true);
     } catch (err) {
       console.error("Fetch likes failed", err);
+      setLikes([]);
+      setShowLikes(true);
     }
   };
 
   const handleDelete = () => {
-    Alert.alert("Delete Post", "Are you sure you want to delete this post?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteExpertArticle(id);
-            router.back();
-          } catch (err) {
-            Alert.alert("Error", "Delete failed");
-          }
-        },
+    showConfirmPopup(
+      "Delete Post",
+      "Are you sure you want to delete this post?",
+      async () => {
+        try {
+          await deleteExpertArticle(id);
+          router.back();
+        } catch (err) {
+          showInfoPopup("Error", "Delete failed");
+        }
       },
-    ]);
+      { destructive: true, warningText: "This action cannot be reversed." }
+    );
   };
 
   /* ===================== LOADING / ERROR ===================== */
@@ -287,22 +358,20 @@ export default function ArticleDetail() {
 
           {/* LIKE & COMMENT */}
           <View className="flex-row items-center mt-6 border-t border-gray-100 pt-4">
-            {type === "user_post" && (
-              <TouchableOpacity
-                className="flex-row items-center mr-8"
-                onPress={handleToggleLike}
-              >
+            <View className="flex-row items-center mr-6">
+              <TouchableOpacity onPress={handleToggleLike} className="mr-2">
                 <Heart
                   size={20}
                   color={post.is_liked ? "#7F56D9" : "#B4B4B4"}
                 />
-                <TouchableOpacity onPress={handleShowLikes}>
-                  <Text className="ml-2 font-[Poppins-Medium]">
-                    {post.like_count}
-                  </Text>
-                </TouchableOpacity>
               </TouchableOpacity>
-            )}
+
+              <TouchableOpacity onPress={handleShowLikes}>
+                <Text className="ml-2 font-[Poppins-Medium]">
+                  {post.like_count}
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             <View className="flex-row items-center">
               <MessageCircle size={20} color="#7F56D9" />
@@ -315,8 +384,8 @@ export default function ArticleDetail() {
           {/* LIKES LIST: shown in modal when `showLikes` is true */}
           {/* keep the existing trigger (handleShowLikes) on the count */}
 
-          {/* COMMENTS (user_post only) */}
-          {type === "user_post" && comments.length > 0 && (
+          {/* COMMENTS */}
+          {comments.length > 0 && (
             <View className="mt-8">
               <Text className="font-[Poppins-SemiBold] mb-3">Comments</Text>
 
@@ -347,27 +416,26 @@ export default function ArticleDetail() {
             </View>
           )}
 
-          {type === "user_post" && (
-            <View className="mt-6 bg-white rounded-xl p-3 shadow-sm">
-              <TextInput
-                value={commentText}
-                onChangeText={setCommentText}
-                placeholder="Write a comment..."
-                multiline
-                className="text-gray-800 font-[Poppins-Regular]"
-              />
+          {/* Comment input (allow for expert_article and user_post) */}
+          <View className="mt-6 bg-white rounded-xl p-3 shadow-sm">
+            <TextInput
+              value={commentText}
+              onChangeText={setCommentText}
+              placeholder="Write a comment..."
+              multiline
+              className="text-gray-800 font-[Poppins-Regular]"
+            />
 
-              <TouchableOpacity
-                onPress={handleSubmitComment}
-                disabled={submitting}
-                className="mt-3 bg-[#7F56D9] py-2 rounded-lg"
-              >
-                <Text className="text-center text-white font-[Poppins-SemiBold]">
-                  {submitting ? "Posting..." : "Post Comment"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
+            <TouchableOpacity
+              onPress={handleSubmitComment}
+              disabled={submitting}
+              className="mt-3 bg-[#7F56D9] py-2 rounded-lg"
+            >
+              <Text className="text-center text-white font-[Poppins-SemiBold]">
+                {submitting ? "Posting..." : "Post Comment"}
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           {/* DELETE POST (pending expert only) */}
           {isPendingExpert && (
@@ -420,6 +488,80 @@ export default function ArticleDetail() {
                   Close
                 </Text>
               </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Generic Info/Confirm Popup */}
+        <Modal
+          visible={popupVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPopupVisible(false)}
+        >
+          <View style={styles.popupOverlay}>
+            <View style={styles.popupContainer}>
+              {popupTitle ? (
+                <Text
+                  style={
+                    popupDestructive
+                      ? [styles.popupTitle, styles.popupTitleDestructive]
+                      : styles.popupTitle
+                  }
+                >
+                  {popupTitle}
+                </Text>
+              ) : null}
+              {popupMessage ? (
+                <Text style={styles.popupMessage}>{popupMessage}</Text>
+              ) : null}
+              {popupWarningText ? (
+                <Text style={styles.popupWarning}>{popupWarningText}</Text>
+              ) : null}
+
+              <View style={styles.popupButtonsRow}>
+                {popupIsConfirm ? (
+                  <>
+                    <TouchableOpacity
+                      style={styles.popupBtn}
+                      onPress={() => setPopupVisible(false)}
+                      disabled={popupConfirmLoading}
+                    >
+                      <Text style={styles.popupBtnText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={
+                        popupDestructive
+                          ? [styles.popupBtn, styles.popupBtnDestructive]
+                          : [styles.popupBtn, styles.popupBtnPrimary]
+                      }
+                      onPress={handlePopupConfirm}
+                      disabled={popupConfirmLoading}
+                    >
+                      <Text
+                        style={
+                          popupDestructive
+                            ? [styles.popupBtnText, styles.popupBtnPrimaryText]
+                            : [styles.popupBtnText, styles.popupBtnPrimaryText]
+                        }
+                      >
+                        {popupDestructive ? "Delete" : "Confirm"}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.popupBtn, styles.popupBtnPrimary]}
+                    onPress={() => setPopupVisible(false)}
+                  >
+                    <Text
+                      style={[styles.popupBtnText, styles.popupBtnPrimaryText]}
+                    >
+                      OK
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
           </View>
         </Modal>
@@ -527,5 +669,71 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 8,
     backgroundColor: "#7F56D9",
+  },
+  popupOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  popupContainer: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+  },
+  popupTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 8,
+    fontFamily: "Poppins-SemiBold",
+  },
+  popupTitleDestructive: {
+    color: "#B91C1C",
+  },
+  popupMessage: {
+    fontSize: 14,
+    color: "#374151",
+    marginBottom: 12,
+    textAlign: "center",
+    fontFamily: "Poppins-Regular",
+  },
+  popupButtonsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    width: "100%",
+  },
+  popupBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    marginHorizontal: 6,
+  },
+  popupBtnPrimary: {
+    backgroundColor: "#7F56D9",
+    borderColor: "#7F56D9",
+  },
+  popupBtnDestructive: {
+    backgroundColor: "#EF4444",
+    borderColor: "#EF4444",
+  },
+  popupBtnText: {
+    fontSize: 14,
+    color: "#111827",
+    fontFamily: "Poppins-Regular",
+  },
+  popupBtnPrimaryText: {
+    color: "#fff",
+    fontFamily: "Poppins-SemiBold",
+  },
+  popupWarning: {
+    color: "#B91C1C",
+    marginBottom: 12,
+    textAlign: "center",
+    fontFamily: "Poppins-Medium",
   },
 });
