@@ -312,18 +312,8 @@ export default function ArticleDetail() {
             </View>
           </View>
 
-          {/* LIKES LIST (user_post only) */}
-          {type === "user_post" && showLikes && likes.length > 0 && (
-            <View className="mt-6">
-              <Text className="font-[Poppins-SemiBold] mb-2">Liked by</Text>
-              {likes.map((u) => (
-                <View key={u.user_id} className="flex-row items-center mb-2">
-                  <View className="w-8 h-8 rounded-full bg-gray-300 mr-3" />
-                  <Text className="font-[Poppins-Regular]">{u.username}</Text>
-                </View>
-              ))}
-            </View>
-          )}
+          {/* LIKES LIST: shown in modal when `showLikes` is true */}
+          {/* keep the existing trigger (handleShowLikes) on the count */}
 
           {/* COMMENTS (user_post only) */}
           {type === "user_post" && comments.length > 0 && (
@@ -395,6 +385,45 @@ export default function ArticleDetail() {
           )}
         </ScrollView>
 
+        {/* Likes Modal (popup) */}
+        <Modal
+          visible={showLikes}
+          transparent={true}
+          onRequestClose={() => setShowLikes(false)}
+        >
+          <View style={styles.likesModalOverlay}>
+            <View style={styles.likesModalContainer}>
+              <Text className="font-[Poppins-SemiBold] text-[16px]">
+                Liked by
+              </Text>
+
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {likes.length === 0 ? (
+                  <Text style={styles.likesEmpty}>No likes yet</Text>
+                ) : (
+                  likes.map((u) => (
+                    <View key={u.user_id} style={styles.likesItemRow}>
+                      {/* <View style={styles.likesAvatarPlaceholder} /> */}
+                      <Text className="font-[Poppins-Regular] text-[16px]">
+                        {u.username}
+                      </Text>
+                    </View>
+                  ))
+                )}
+              </ScrollView>
+
+              <TouchableOpacity
+                onPress={() => setShowLikes(false)}
+                className="self-center bg-[#7F56D9] px-4 py-2 rounded-lg"
+              >
+                <Text className="text-white font-[Poppins-SemiBold] text-[14px] text-center">
+                  Close
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
         {/* Image Modal (full-screen, zoomable) */}
         <Modal
           visible={imageModalVisible}
@@ -457,5 +486,46 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  likesModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  likesModalContainer: {
+    width: "100%",
+    maxHeight: WINDOW_HEIGHT * 0.7,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+  },
+  likesItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#EEE",
+  },
+  likesAvatarPlaceholder: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#E5E7EB",
+    marginRight: 12,
+  },
+  likesEmpty: {
+    color: "#6B7280",
+    fontStyle: "italic",
+    paddingVertical: 8,
+  },
+  likesCloseBtn: {
+    marginTop: 12,
+    alignSelf: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: "#7F56D9",
   },
 });

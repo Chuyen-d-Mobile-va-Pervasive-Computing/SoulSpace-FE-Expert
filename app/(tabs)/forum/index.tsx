@@ -1,4 +1,9 @@
-import { getExpertArticles, getFeed } from "@/lib/api";
+import {
+  getExpertArticles,
+  getFeed,
+  likeAnonPost,
+  unlikeAnonPost,
+} from "@/lib/api";
 import { useRouter } from "expo-router";
 import {
   Bookmark,
@@ -30,6 +35,7 @@ type Article = {
   hashtags?: string[];
   like_count: number;
   comment_count: number;
+  is_liked?: boolean;
   type?: "user_post" | "expert_article";
 };
 
@@ -100,6 +106,37 @@ export default function ForumScreen() {
   const [pageHome, setPageHome] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loadingHome, setLoadingHome] = useState(false);
+
+  const handleToggleLikeInFeed = async (item: any) => {
+    if (!item) return;
+
+    // snapshot for revert
+    const prevFeedAll = feedAll;
+    const prevFeedPage = feedPage;
+
+    const toggled = (obj: any) => ({
+      ...obj,
+      is_liked: !obj.is_liked,
+      like_count: obj.is_liked ? obj.like_count - 1 : obj.like_count + 1,
+    });
+
+    // optimistic update
+    setFeedAll((fa) => fa.map((f) => (f._id === item._id ? toggled(f) : f)));
+    setFeedPage((fp) => fp.map((f) => (f._id === item._id ? toggled(f) : f)));
+
+    try {
+      if (item.is_liked) {
+        await unlikeAnonPost(item._id);
+      } else {
+        await likeAnonPost(item._id);
+      }
+    } catch (err) {
+      // revert on error
+      setFeedAll(prevFeedAll);
+      setFeedPage(prevFeedPage);
+      console.error("Like action failed", err);
+    }
+  };
 
   /* ===================== FETCH API (ONLY ONCE) ===================== */
 
@@ -298,12 +335,18 @@ export default function ForumScreen() {
 
                     {/* LIKE & COMMENT */}
                     <View className="flex-row items-center mt-4 border-t border-gray-100 pt-3">
-                      <View className="flex-row items-center mr-6">
-                        <Heart size={18} color="#7F56D9" />
+                      <TouchableOpacity
+                        className="flex-row items-center mr-6"
+                        onPress={() => handleToggleLikeInFeed(item)}
+                      >
+                        <Heart
+                          size={18}
+                          color={item.is_liked ? "#7F56D9" : "#B4B4B4"}
+                        />
                         <Text className="ml-2 text-sm font-[Poppins-Medium]">
                           {item.like_count}
                         </Text>
-                      </View>
+                      </TouchableOpacity>
 
                       <View className="flex-row items-center">
                         <MessageCircle size={18} color="#7F56D9" />
@@ -482,12 +525,18 @@ export default function ForumScreen() {
                   )}
                   <View className="flex-row items-center mt-4  pt-3">
                     {/* LIKE */}
-                    <View className="flex-row items-center mr-6">
-                      <Heart size={18} color="#7F56D9" />
+                    <TouchableOpacity
+                      className="flex-row items-center mr-6"
+                      onPress={() => handleToggleLikeInFeed(item)}
+                    >
+                      <Heart
+                        size={18}
+                        color={item.is_liked ? "#7F56D9" : "#B4B4B4"}
+                      />
                       <Text className="ml-2 text-sm text-gray-700 font-[Poppins-Medium]">
                         {item.like_count}
                       </Text>
-                    </View>
+                    </TouchableOpacity>
 
                     {/* COMMENT */}
                     <View className="flex-row items-center">
