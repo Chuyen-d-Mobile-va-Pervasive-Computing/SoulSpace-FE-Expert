@@ -190,7 +190,7 @@ export default function SignupPager() {
         <View key="4" className="flex-1 items-center justify-center px-6">
           <CreateAccount width={250} height={250} />
           <Text className="text-3xl font-[Poppins-Bold] mb-6 text-center">
-            Your account was successfully created!
+            Your password has been successfully reset!
           </Text>
           <Text className="text-xl font-[Poppins-Regular] mb-6 text-center">
             Only one click to explore SoulSpace.

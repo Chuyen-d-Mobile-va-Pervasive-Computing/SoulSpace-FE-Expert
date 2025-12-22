@@ -7,7 +7,6 @@ import {
   KeyboardAvoidingView,
   Modal,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -26,6 +25,13 @@ import {
   unlikeAnonPost,
 } from "@/lib/api";
 
+// cross-platform pinch/zoom wrapper (handle both CJS and ESM default exports)
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const _ImageZoomMod: any = require("react-native-image-pan-zoom");
+const ImageZoom: any =
+  _ImageZoomMod && _ImageZoomMod.default
+    ? _ImageZoomMod.default
+    : _ImageZoomMod;
 type DetailType = "user_post" | "expert_article";
 type ArticleStatus = "pending" | "approved";
 
@@ -54,7 +60,7 @@ export default function ArticleDetail() {
 
   // popup modal state (info and confirm)
   const [popupVisible, setPopupVisible] = useState(false);
-  const [popupTitle, setPopupTitle] = useState<string | null>(null);
+  const [popupTitle, setPopupTitle] = useState<React.ReactNode | null>(null);
   const [popupMessage, setPopupMessage] = useState<string | null>(null);
   const [popupIsConfirm, setPopupIsConfirm] = useState(false);
   const [popupConfirmLoading, setPopupConfirmLoading] = useState(false);
@@ -62,7 +68,7 @@ export default function ArticleDetail() {
   const [popupWarningText, setPopupWarningText] = useState<string | null>(null);
   const popupConfirmRef = React.useRef<(() => Promise<void>) | null>(null);
 
-  const showInfoPopup = (title: string, message?: string) => {
+  const showInfoPopup = (title: React.ReactNode, message?: string) => {
     setPopupTitle(title);
     setPopupMessage(message || null);
     setPopupIsConfirm(false);
@@ -75,7 +81,7 @@ export default function ArticleDetail() {
   type ConfirmOptions = { destructive?: boolean; warningText?: string };
 
   const showConfirmPopup = (
-    title: string,
+    title: React.ReactNode,
     message: string,
     onConfirm: () => Promise<void>,
     options?: ConfirmOptions
@@ -180,7 +186,9 @@ export default function ArticleDetail() {
 
   const handleDeleteComment = (comment_id: string) => {
     showConfirmPopup(
-      "Delete Comment",
+      <Text className="font-[Poppins-Bold] text-[#EF4444] text-[16px]">
+        Delete Comment
+      </Text>,
       "Are you sure? This action cannot be undone.",
       async () => {
         try {
@@ -351,7 +359,9 @@ export default function ArticleDetail() {
             >
               <Image
                 source={{ uri: post.image_url }}
-                className="w-full h-52 rounded-2xl mt-6"
+                className="w-full rounded-2xl mt-6"
+                style={{ aspectRatio: 1 }}
+                resizeMode="contain"
               />
             </TouchableOpacity>
           )}
@@ -459,19 +469,27 @@ export default function ArticleDetail() {
           transparent={true}
           onRequestClose={() => setShowLikes(false)}
         >
-          <View style={styles.likesModalOverlay}>
-            <View style={styles.likesModalContainer}>
+          <View className="flex-1 bg-[rgba(0,0,0,0.5)] justify-center items-center px-5">
+            <View className="w-full max-h-[70vh] bg-white rounded-lg p-4">
               <Text className="font-[Poppins-SemiBold] text-[16px]">
                 Liked by
               </Text>
 
-              <ScrollView showsVerticalScrollIndicator={false}>
+              <ScrollView showsVerticalScrollIndicator={false} className="mt-2">
                 {likes.length === 0 ? (
-                  <Text style={styles.likesEmpty}>No likes yet</Text>
+                  <Text className="font-[Poppins-Italic] text-[14px] mt-4 text-[#6B7280]">
+                    No likes yet
+                  </Text>
                 ) : (
                   likes.map((u) => (
-                    <View key={u.user_id} style={styles.likesItemRow}>
-                      {/* <View style={styles.likesAvatarPlaceholder} /> */}
+                    <View
+                      key={u.user_id}
+                      className="flex-row mt-4 items-center gap-2"
+                    >
+                      <Image
+                        source={{ uri: u.avatar_url }}
+                        className="w-10 h-10 rounded-full mr-3"
+                      />
                       <Text className="font-[Poppins-Regular] text-[16px]">
                         {u.username}
                       </Text>
@@ -482,7 +500,7 @@ export default function ArticleDetail() {
 
               <TouchableOpacity
                 onPress={() => setShowLikes(false)}
-                className="self-center bg-[#7F56D9] px-4 py-2 rounded-lg"
+                className="self-center bg-[#7F56D9] px-4 py-2 rounded-lg mt-3"
               >
                 <Text className="text-white font-[Poppins-SemiBold] text-[14px] text-center">
                   Close
@@ -499,64 +517,63 @@ export default function ArticleDetail() {
           animationType="fade"
           onRequestClose={() => setPopupVisible(false)}
         >
-          <View style={styles.popupOverlay}>
-            <View style={styles.popupContainer}>
+          <View className="flex-1 bg-[rgba(0,0,0,0.4)] justify-center items-center px-5">
+            <View className="w-full bg-white rounded-lg p-4 items-center">
               {popupTitle ? (
-                <Text
-                  style={
-                    popupDestructive
-                      ? [styles.popupTitle, styles.popupTitleDestructive]
-                      : styles.popupTitle
-                  }
-                >
-                  {popupTitle}
-                </Text>
+                typeof popupTitle === "string" ? (
+                  <Text
+                    className={
+                      popupDestructive
+                        ? "text-[#B91C1C] text-[16px] font-[Poppins-SemiBold] mb-2"
+                        : "text-[16px] font-[Poppins-SemiBold] mb-2"
+                    }
+                  >
+                    {popupTitle}
+                  </Text>
+                ) : (
+                  popupTitle
+                )
               ) : null}
               {popupMessage ? (
-                <Text style={styles.popupMessage}>{popupMessage}</Text>
+                <Text className="font-[Poppins-Regular] text-[#374151] mt-2">
+                  {popupMessage}
+                </Text>
               ) : null}
               {popupWarningText ? (
-                <Text style={styles.popupWarning}>{popupWarningText}</Text>
+                <Text className="text-[#B91C1C] mb-3 text-center font-[Poppins-Medium]">
+                  {popupWarningText}
+                </Text>
               ) : null}
 
-              <View style={styles.popupButtonsRow}>
+              <View className="flex-row justify-center w-full">
                 {popupIsConfirm ? (
-                  <>
+                  <View className="flex-row mt-4">
                     <TouchableOpacity
-                      style={styles.popupBtn}
+                      className="py-2 px-4 rounded-lg border border-[#E5E7EB] mx-1"
                       onPress={() => setPopupVisible(false)}
                       disabled={popupConfirmLoading}
                     >
-                      <Text style={styles.popupBtnText}>Cancel</Text>
+                      <Text className="text-[14px] text-[#111827] font-[Poppins-Regular]">
+                        Cancel
+                      </Text>
                     </TouchableOpacity>
+
                     <TouchableOpacity
-                      style={
-                        popupDestructive
-                          ? [styles.popupBtn, styles.popupBtnDestructive]
-                          : [styles.popupBtn, styles.popupBtnPrimary]
-                      }
+                      className={`py-2 px-4 rounded-lg mx-1 ${popupDestructive ? "border border-[#EF4444] bg-[#EF4444]" : "border border-[#7F56D9] bg-[#7F56D9]"}`}
                       onPress={handlePopupConfirm}
                       disabled={popupConfirmLoading}
                     >
-                      <Text
-                        style={
-                          popupDestructive
-                            ? [styles.popupBtnText, styles.popupBtnPrimaryText]
-                            : [styles.popupBtnText, styles.popupBtnPrimaryText]
-                        }
-                      >
+                      <Text className="text-white font-[Poppins-SemiBold]">
                         {popupDestructive ? "Delete" : "Confirm"}
                       </Text>
                     </TouchableOpacity>
-                  </>
+                  </View>
                 ) : (
                   <TouchableOpacity
-                    style={[styles.popupBtn, styles.popupBtnPrimary]}
+                    className="py-2 px-4 rounded-lg border border-[#7F56D9] bg-[#7F56D9]"
                     onPress={() => setPopupVisible(false)}
                   >
-                    <Text
-                      style={[styles.popupBtnText, styles.popupBtnPrimaryText]}
-                    >
+                    <Text className="text-white font-[Poppins-SemiBold] text-[14px]">
                       OK
                     </Text>
                   </TouchableOpacity>
@@ -572,26 +589,30 @@ export default function ArticleDetail() {
           transparent={true}
           onRequestClose={closeImage}
         >
-          <View style={styles.modalContainer}>
-            <TouchableOpacity style={styles.closeButton} onPress={closeImage}>
-              <Text style={styles.closeText}>Close</Text>
+          <View className="flex-1 bg-[rgba(0,0,0,0.95)] justify-center items-center">
+            <TouchableOpacity
+              className="absolute top-10 right-5 z-10 p-2"
+              onPress={closeImage}
+            >
+              <Text className="text-white font-[Poppins-SemiBold]">Close</Text>
             </TouchableOpacity>
 
-            <ScrollView
-              maximumZoomScale={3}
-              minimumZoomScale={1}
-              contentContainerStyle={styles.modalScrollContainer}
-              showsHorizontalScrollIndicator={false}
-              showsVerticalScrollIndicator={false}
-            >
-              {modalImageUrl && (
+            {modalImageUrl && (
+              <ImageZoom
+                cropWidth={WINDOW_WIDTH}
+                cropHeight={WINDOW_HEIGHT * 0.9}
+                imageWidth={WINDOW_WIDTH}
+                imageHeight={WINDOW_HEIGHT * 0.9}
+                minScale={0.5}
+                maxScale={3}
+              >
                 <Image
                   source={{ uri: modalImageUrl }}
-                  style={styles.modalImage}
+                  style={{ width: WINDOW_WIDTH, height: WINDOW_HEIGHT * 0.9 }}
                   resizeMode="contain"
                 />
-              )}
-            </ScrollView>
+              </ImageZoom>
+            )}
           </View>
         </Modal>
       </View>
@@ -600,140 +621,3 @@ export default function ArticleDetail() {
 }
 
 const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get("window");
-
-const styles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.95)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalScrollContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalImage: {
-    width: WINDOW_WIDTH,
-    height: WINDOW_HEIGHT * 0.9,
-  },
-  closeButton: {
-    position: "absolute",
-    top: 40,
-    right: 20,
-    zIndex: 10,
-    padding: 8,
-  },
-  closeText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  likesModalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  likesModalContainer: {
-    width: "100%",
-    maxHeight: WINDOW_HEIGHT * 0.7,
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
-  },
-  likesItemRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#EEE",
-  },
-  likesAvatarPlaceholder: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#E5E7EB",
-    marginRight: 12,
-  },
-  likesEmpty: {
-    color: "#6B7280",
-    fontStyle: "italic",
-    paddingVertical: 8,
-  },
-  likesCloseBtn: {
-    marginTop: 12,
-    alignSelf: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    backgroundColor: "#7F56D9",
-  },
-  popupOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  popupContainer: {
-    width: "100%",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    alignItems: "center",
-  },
-  popupTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 8,
-    fontFamily: "Poppins-SemiBold",
-  },
-  popupTitleDestructive: {
-    color: "#B91C1C",
-  },
-  popupMessage: {
-    fontSize: 14,
-    color: "#374151",
-    marginBottom: 12,
-    textAlign: "center",
-    fontFamily: "Poppins-Regular",
-  },
-  popupButtonsRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    width: "100%",
-  },
-  popupBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    marginHorizontal: 6,
-  },
-  popupBtnPrimary: {
-    backgroundColor: "#7F56D9",
-    borderColor: "#7F56D9",
-  },
-  popupBtnDestructive: {
-    backgroundColor: "#EF4444",
-    borderColor: "#EF4444",
-  },
-  popupBtnText: {
-    fontSize: 14,
-    color: "#111827",
-    fontFamily: "Poppins-Regular",
-  },
-  popupBtnPrimaryText: {
-    color: "#fff",
-    fontFamily: "Poppins-SemiBold",
-  },
-  popupWarning: {
-    color: "#B91C1C",
-    marginBottom: 12,
-    textAlign: "center",
-    fontFamily: "Poppins-Medium",
-  },
-});

@@ -329,7 +329,9 @@ export default function ForumScreen() {
                     {item.image_url && (
                       <Image
                         source={{ uri: item.image_url }}
-                        className="w-full h-40 rounded-xl mt-4"
+                        className="w-full rounded-xl mt-4"
+                        style={{ aspectRatio: 1 }}
+                        resizeMode="contain"
                       />
                     )}
 
@@ -447,7 +449,9 @@ export default function ForumScreen() {
                   {item.image_url && (
                     <Image
                       source={{ uri: item.image_url }}
-                      className="w-full h-40 rounded-xl mt-4"
+                      className="w-full rounded-xl mt-4"
+                      style={{ aspectRatio: 1 }}
+                      resizeMode="contain"
                     />
                   )}
 
@@ -520,7 +524,9 @@ export default function ForumScreen() {
                   {item.image_url && (
                     <Image
                       source={{ uri: item.image_url }}
-                      className="w-full h-40 rounded-xl mt-4"
+                      className="w-full rounded-xl mt-4"
+                      style={{ aspectRatio: 1 }}
+                      resizeMode="contain"
                     />
                   )}
                   <View className="flex-row items-center mt-4  pt-3">

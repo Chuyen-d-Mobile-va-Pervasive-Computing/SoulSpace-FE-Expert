@@ -35,23 +35,23 @@ const Heading: React.FC<HeadingProps> = ({ title }) => {
   return (
     <View
       onLayout={onLayoutRootView}
-      className="w-full flex-row items-center justify-between py-4 px-4 border-b border-gray-200 bg-[#FAF9FF] mt-8"
+      className="w-full relative flex-row items-center justify-center py-4 px-4 border-b border-gray-200 bg-[#FAF9FF] mt-8"
     >
-      <View className="flex-row items-center">
-        {/* Nút quay lại → quay về trang trước trong stack */}
-        <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft width={40} height={30} />
-        </TouchableOpacity>
+      {/* Back button: positioned left */}
+      <TouchableOpacity
+        onPress={() => router.back()}
+        className="absolute left-4"
+        accessibilityLabel="Back"
+      >
+        <ArrowLeft width={40} height={30} />
+      </TouchableOpacity>
 
-        <Text className="font-[Poppins-Bold] text-2xl text-[#7F56D9] ml-4">
-          {title}
-        </Text>
-      </View>
+      {/* Centered title */}
+      <Text className="font-[Poppins-Bold] text-2xl text-[#000000] text-center">
+        {title}
+      </Text>
 
-      {/* <View className="flex-row items-center gap-4">
-        <Bell strokeWidth={1.5} />
-        <Settings strokeWidth={1.5} />
-      </View> */}
+      {/* Right spacer kept empty for visual balance if needed */}
     </View>
   );
 };

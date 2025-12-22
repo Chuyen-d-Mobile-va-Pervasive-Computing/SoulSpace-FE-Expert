@@ -1,8 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import {
+  ArrowLeft,
   ChevronRight,
   CircleUserRound,
+  Info,
   Lock,
   LogOut,
 } from "lucide-react-native";
@@ -38,7 +40,14 @@ export default function SettingsScreen() {
   return (
     <View className="flex-1 bg-[#FAF9FF]">
       {/* Heading */}
-      <View className="w-full py-4 px-4 mt-10">
+      <View className="w-full relative flex-row items-center justify-center py-4 px-4 border-b border-gray-200 bg-[#FAF9FF] mt-8">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          className="absolute left-4"
+          accessibilityLabel="Back"
+        >
+          <ArrowLeft width={40} height={30} />
+        </TouchableOpacity>
         <Text className="text-2xl font-[Poppins-Bold] text-center">
           Setting
         </Text>
@@ -57,6 +66,23 @@ export default function SettingsScreen() {
             <View className="flex-row justify-between items-center">
               <View className="flex-row items-center gap-2">
                 <CircleUserRound width={24} height={24} strokeWidth={1} />
+                <Text className="font-[Poppins-Regular] text-base">
+                  Username
+                </Text>
+              </View>
+
+              <ChevronRight width={24} height={24} strokeWidth={1} />
+            </View>
+          </TouchableOpacity>
+
+          {/* Account */}
+          <TouchableOpacity
+            className="w-full h-14 rounded-xl border border-[#EEEEEE] bg-white px-3 justify-center"
+            onPress={() => router.push("/setting/profile")}
+          >
+            <View className="flex-row justify-between items-center">
+              <View className="flex-row items-center gap-2">
+                <Info width={24} height={24} strokeWidth={1} />
                 <Text className="font-[Poppins-Regular] text-base">
                   Account
                 </Text>

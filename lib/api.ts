@@ -380,3 +380,26 @@ export const deleteAnonComment = (comment_id: string) =>
   api(`/api/v1/anon-comments/${comment_id}`, {
     method: "DELETE",
   });
+
+  // GET expert my profile
+export const getMyExpertProfile = () =>
+  api("/api/v1/expert/my-profile", {
+    method: "GET",
+  });
+
+// UPDATE expert profile
+export const updateExpertProfile = (payload: {
+  full_name?: string;
+  phone?: string;
+  date_of_birth?: string;
+  bio?: string;
+  avatar_url?: string;
+  clinic_name?: string;
+  clinic_address?: string;
+  consultation_price?: number;
+  years_of_experience?: number;
+}) =>
+  api("/api/v1/auth/expert/profile", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
