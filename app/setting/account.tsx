@@ -1,31 +1,51 @@
 import Heading from "@/components/Heading";
 import { router } from "expo-router";
-import { useState } from "react";
-import { Alert, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Modal, Text, TextInput, TouchableOpacity, View } from "react-native";
+
+import { getMe, updateUsername } from "@/lib/api";
 
 export default function ChangeAccount() {
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSave = () => {
+  // popup state
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  useEffect(() => {
+    loadMe();
+  }, []);
+
+  const loadMe = async () => {
+    try {
+      const res = await getMe();
+      setUsername(res.username || "");
+    } catch (e: any) {
+      setErrorMessage(e.message || "Failed to load user info.");
+    }
+  };
+
+  const handleSave = async () => {
     if (!username.trim()) {
-      Alert.alert("Error", "Username cannot be empty.");
+      setErrorMessage("Username cannot be empty.");
       return;
     }
 
     if (username.length > 30) {
-      Alert.alert("Error", "Username must be 30 characters or less.");
+      setErrorMessage("Username must be 30 characters or less.");
       return;
     }
 
-    // Mock saving like API
-    setLoading(true);
-    setTimeout(() => {
+    try {
+      setLoading(true);
+      await updateUsername(username.trim());
+      setShowSuccess(true);
+    } catch (e: any) {
+      setErrorMessage(e.message || "Update username failed.");
+    } finally {
       setLoading(false);
-      Alert.alert("Success", "Username updated successfully!", [
-        { text: "OK", onPress: () => router.push("/setting") },
-      ]);
-    }, 800);
+    }
   };
 
   return (
@@ -61,6 +81,53 @@ export default function ChangeAccount() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* ❌ ERROR POPUP */}
+      <Modal transparent visible={!!errorMessage} animationType="fade">
+        <View className="flex-1 bg-black/50 items-center justify-center">
+          <View className="bg-white w-4/5 rounded-2xl px-6 py-7 items-center">
+            <Text className="text-lg font-[Poppins-Bold] text-red-500 mb-3">
+              Error
+            </Text>
+
+            <Text className="text-center font-[Poppins-Regular] text-gray-600 mb-6">
+              {errorMessage}
+            </Text>
+
+            <TouchableOpacity
+              onPress={() => setErrorMessage(null)}
+              className="w-full h-12 rounded-xl bg-red-500 items-center justify-center"
+            >
+              <Text className="text-white font-[Poppins-Bold]">OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ✅ SUCCESS POPUP */}
+      <Modal transparent visible={showSuccess} animationType="fade">
+        <View className="flex-1 bg-black/50 items-center justify-center">
+          <View className="bg-white w-4/5 rounded-2xl px-6 py-7 items-center">
+            <Text className="text-lg font-[Poppins-Bold] text-[#7F56D9] mb-3">
+              Success
+            </Text>
+
+            <Text className="text-center font-[Poppins-Regular] text-gray-600 mb-6">
+              Username updated successfully!
+            </Text>
+
+            <TouchableOpacity
+              onPress={() => {
+                setShowSuccess(false);
+                router.push("/setting");
+              }}
+              className="w-full h-12 rounded-xl bg-[#7F56D9] items-center justify-center"
+            >
+              <Text className="text-white font-[Poppins-Bold]">OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

@@ -403,3 +403,16 @@ export const updateExpertProfile = (payload: {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
+
+  // GET current user info
+export const getMe = () =>
+  api("/api/v1/auth/me", {
+    method: "GET",
+  });
+
+// UPDATE username
+export const updateUsername = (new_username: string) =>
+  api("/api/v1/auth/update-username", {
+    method: "POST",
+    body: JSON.stringify({ new_username }),
+  });
