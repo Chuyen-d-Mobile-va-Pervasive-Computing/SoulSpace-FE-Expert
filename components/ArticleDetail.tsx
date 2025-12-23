@@ -143,7 +143,27 @@ export default function ArticleDetail() {
         }));
       }
     } catch (err) {
-      showInfoPopup("Error", "Like failed");
+      // If server complains (e.g. already liked), try opposite action once to sync
+      try {
+        if (!post.is_liked) {
+          await unlikeAnonPost(id);
+          setPost((prev: any) => ({
+            ...prev,
+            is_liked: false,
+            like_count: prev.like_count - 1,
+          }));
+        } else {
+          await likeAnonPost(id);
+          setPost((prev: any) => ({
+            ...prev,
+            is_liked: true,
+            like_count: prev.like_count + 1,
+          }));
+        }
+      } catch (innerErr) {
+        console.error("Like action failed", err, innerErr);
+        showInfoPopup("Error", "Like failed");
+      }
     }
   };
 

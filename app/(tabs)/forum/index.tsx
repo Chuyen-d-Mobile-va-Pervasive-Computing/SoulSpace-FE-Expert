@@ -25,6 +25,7 @@ import {
 } from "react-native";
 import PagerView from "react-native-pager-view";
 
+import { useFocusEffect } from "@react-navigation/native";
 type Article = {
   _id: string;
   title: string;
@@ -132,9 +133,79 @@ export default function ForumScreen() {
       }
     } catch (err) {
       // revert on error
+      // If server says already liked / already unliked, try the opposite action once
+      try {
+        const msg = (err as any)?.message || "";
+        if (!item.is_liked) {
+          // we tried to like but server rejected — try to unlike to sync
+          await unlikeAnonPost(item._id);
+          setFeedAll(prevFeedAll);
+          setFeedPage(prevFeedPage);
+        } else {
+          // we tried to unlike but server rejected — try to like to sync
+          await likeAnonPost(item._id);
+          setFeedAll(prevFeedAll);
+          setFeedPage(prevFeedPage);
+        }
+      } catch (innerErr) {
+        setFeedAll(prevFeedAll);
+        setFeedPage(prevFeedPage);
+        console.error("Like action failed", err, innerErr);
+      }
+    }
+  };
+
+  const handleToggleLikeInArticles = async (item: Article) => {
+    if (!item) return;
+
+    // snapshots for revert
+    const prevArticles = articles;
+    const prevFeedAll = feedAll;
+    const prevFeedPage = feedPage;
+
+    const willLike = !item.is_liked;
+
+    const applyToggle = (obj: any) => ({
+      ...obj,
+      is_liked: willLike,
+      like_count: willLike
+        ? obj.like_count + 1
+        : Math.max(0, obj.like_count - 1),
+    });
+
+    // optimistic update for articles and feed (so History UI updates immediately)
+    setArticles((as) =>
+      as.map((a) => (a._id === item._id ? applyToggle(a) : a))
+    );
+    setFeedAll((fa) =>
+      fa.map((f) => (f._id === item._id ? applyToggle(f) : f))
+    );
+    setFeedPage((fp) =>
+      fp.map((f) => (f._id === item._id ? applyToggle(f) : f))
+    );
+
+    try {
+      if (willLike) {
+        await likeAnonPost(item._id);
+      } else {
+        await unlikeAnonPost(item._id);
+      }
+    } catch (err) {
+      // revert on any failure
+      setArticles(prevArticles);
       setFeedAll(prevFeedAll);
       setFeedPage(prevFeedPage);
-      console.error("Like action failed", err);
+
+      // try opposite action once to attempt server sync
+      try {
+        if (willLike) {
+          await unlikeAnonPost(item._id);
+        } else {
+          await likeAnonPost(item._id);
+        }
+      } catch (innerErr) {
+        console.error("Like action failed", err, innerErr);
+      }
     }
   };
 
@@ -144,7 +215,8 @@ export default function ForumScreen() {
     const fetchArticles = async () => {
       try {
         const res = await getExpertArticles();
-        setArticles(res);
+        // ensure is_liked is a boolean so UI color toggles reliably
+        setArticles(res.map((r: any) => ({ ...r, is_liked: !!r.is_liked })));
       } catch (err) {
         console.error("Fetch articles failed", err);
       }
@@ -169,7 +241,8 @@ export default function ForumScreen() {
       try {
         setLoadingHome(true);
         const res = await getFeed(100); // lấy full 100 bài
-        setFeedAll(res);
+        // ensure is_liked boolean for feed items too
+        setFeedAll(res.map((r: any) => ({ ...r, is_liked: !!r.is_liked })));
         setTotalPages(Math.ceil(res.length / PAGE_SIZE));
       } catch (err) {
         console.error("Fetch feed failed", err);
@@ -180,6 +253,39 @@ export default function ForumScreen() {
 
     fetchFeed();
   }, [page]);
+
+  // Re-fetch when screen gains focus (keeps like state in sync if user liked/unliked elsewhere)
+  useFocusEffect(
+    React.useCallback(() => {
+      let active = true;
+      const refetch = async () => {
+        try {
+          const resA = await getExpertArticles();
+          if (!active) return;
+          setArticles(resA.map((r: any) => ({ ...r, is_liked: !!r.is_liked })));
+
+          if (page === 0) {
+            setLoadingHome(true);
+            const resF = await getFeed(100);
+            if (!active) return;
+            setFeedAll(
+              resF.map((r: any) => ({ ...r, is_liked: !!r.is_liked }))
+            );
+            setTotalPages(Math.ceil(resF.length / PAGE_SIZE));
+          }
+        } catch (err) {
+          console.error("Refetch on focus failed", err);
+        } finally {
+          setLoadingHome(false);
+        }
+      };
+
+      refetch();
+      return () => {
+        active = false;
+      };
+    }, [page])
+  );
 
   useEffect(() => {
     const start = (pageHome - 1) * PAGE_SIZE;
@@ -533,7 +639,7 @@ export default function ForumScreen() {
                     {/* LIKE */}
                     <TouchableOpacity
                       className="flex-row items-center mr-6"
-                      onPress={() => handleToggleLikeInFeed(item)}
+                      onPress={() => handleToggleLikeInArticles(item)}
                     >
                       <Heart
                         size={18}

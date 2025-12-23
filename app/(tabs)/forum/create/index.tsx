@@ -13,10 +13,7 @@ import {
   View,
 } from "react-native";
 
-import {
-  createExpertArticleWithImage,
-  uploadExpertArticleImage,
-} from "@/lib/api";
+import { createExpertArticleWithImage } from "@/lib/api";
 
 export default function CreateForum() {
   const router = useRouter();
@@ -24,10 +21,12 @@ export default function CreateForum() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [hashtags, setHashtags] = useState("");
-  const [images, setImages] = useState<string[]>([]);
+  const [imageUri, setImageUri] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
 
-  // PICK IMAGE
+  /* =======================
+     PICK IMAGE
+  ======================= */
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
@@ -37,19 +36,21 @@ export default function CreateForum() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: false,
       quality: 0.7,
     });
 
     if (!result.canceled) {
-      setImages([result.assets[0].uri]);
+      setImageUri(result.assets[0].uri);
     }
   };
 
   const removeImage = () => {
-    setImages([]);
+    setImageUri(undefined);
   };
 
+  /* =======================
+     POST ARTICLE
+  ======================= */
   const handlePost = async () => {
     if (!title || !content) {
       alert("Title and content are required");
@@ -59,20 +60,11 @@ export default function CreateForum() {
     try {
       setLoading(true);
 
-      let imageUrl: string | undefined;
-
-      // 1️⃣ upload ảnh trước (GIỐNG avatar)
-      if (images.length > 0) {
-        const uploadRes = await uploadExpertArticleImage(images[0]);
-        imageUrl = uploadRes.image_url;
-      }
-
-      // 2️⃣ create article
       await createExpertArticleWithImage({
         title,
         content,
         hashtags: hashtags.trim() || undefined,
-        imageUri: images.length > 0 ? images[0] : undefined,
+        imageUri,
       });
 
       alert("Post created successfully 🎉");
@@ -136,7 +128,7 @@ export default function CreateForum() {
           Image (optional)
         </Text>
 
-        {images.length === 0 ? (
+        {!imageUri ? (
           <TouchableOpacity
             onPress={pickImage}
             className="flex-row items-center justify-center bg-white border border-gray-200 py-4 rounded-xl"
@@ -149,8 +141,9 @@ export default function CreateForum() {
         ) : (
           <View className="relative mt-2">
             <Image
-              source={{ uri: images[0] }}
+              source={{ uri: imageUri }}
               className="w-full h-48 rounded-xl"
+              resizeMode="contain"
             />
             <TouchableOpacity
               onPress={removeImage}

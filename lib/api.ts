@@ -289,24 +289,20 @@ export const createExpertArticleWithImage = async ({
     } as any);
   }
 
-  const res = await fetch(
-    `${BASE_URL}/api/v1/expert/articles`,
-    {
-      method: "POST",
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: formData,
-    }
-  );
-
-  const data = await res.json();
+  const res = await fetch(`${BASE_URL}/api/v1/expert/articles`, {
+    method: "POST",
+    headers: token
+      ? { Authorization: `Bearer ${token}` }
+      : undefined,
+    body: formData,
+  });
 
   if (!res.ok) {
-    throw new Error(JSON.stringify(data));
+    const err = await res.json();
+    throw new Error(err?.detail || "Create article failed");
   }
 
-  return data;
+  return res.json();
 };
 
 // GET expert articles
