@@ -16,6 +16,9 @@ import {
 
 export default function CalendarScreen() {
   const today = new Date();
+  const todayISO = `${today.getFullYear()}-${String(
+    today.getMonth() + 1
+  ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
   // STATE
   const [currentMonth, setCurrentMonth] = useState(today.getMonth()); // 0–11
@@ -55,6 +58,8 @@ export default function CalendarScreen() {
     "en-US",
     { month: "long" }
   );
+
+  const selectedIsPast = selectedDate < todayISO;
 
   // LOAD SCHEDULES ON MONTH CHANGE
   useEffect(() => {
@@ -192,27 +197,35 @@ export default function CalendarScreen() {
         {Array.from({ length: daysInMonth }).map((_, i) => {
           const day = i + 1;
           const fullDate = formatDate(day);
-          const isSelected = fullDate === selectedDate;
+          const isPast = fullDate < todayISO;
+          const isSelected = fullDate === selectedDate && !isPast;
           const hasSlots = schedules[fullDate]?.length > 0;
 
           return (
             <TouchableOpacity
               key={day}
               className="w-[14%] h-14 items-center justify-center"
-              onPress={() => setSelectedDate(fullDate)}
+              onPress={() => {
+                if (!isPast) setSelectedDate(fullDate);
+              }}
+              disabled={isPast}
             >
               <View
                 className={`w-10 h-10 items-center justify-center ${
                   isSelected
                     ? "bg-[#7F56D9] rounded-xl"
-                    : "bg-transparent rounded-lg"
+                    : isPast
+                      ? "bg-transparent rounded-lg"
+                      : "bg-transparent rounded-lg"
                 }`}
               >
                 <Text
                   className={
                     isSelected
                       ? "text-white font-[Poppins-Regular]"
-                      : "text-black font-[Poppins-Regular]"
+                      : isPast
+                        ? "text-gray-400 font-[Poppins-Regular]"
+                        : "text-black font-[Poppins-Regular]"
                   }
                 >
                   {day}
@@ -229,7 +242,7 @@ export default function CalendarScreen() {
                         slot.id ??
                         `${slot.start_time}-${slot.end_time}`
                       }
-                      className="w-2 h-2 bg-[#7F56D9] rounded-full"
+                      className={`w-2 h-2 rounded-full ${isPast ? "bg-gray-400" : "bg-[#7F56D9]"}`}
                     />
                   ))}
               </View>
@@ -281,10 +294,12 @@ export default function CalendarScreen() {
       {/* FLOATING ADD BUTTON */}
       <TouchableOpacity
         onPress={() => {
+          if (selectedIsPast) return;
           setDate(selectedDate);
           setShowModal(true);
         }}
-        className="absolute bottom-24 right-6 bg-[#7F56D9] w-16 h-16 rounded-full items-center justify-center shadow-lg"
+        disabled={selectedIsPast}
+        className={`absolute bottom-24 right-6 bg-[#7F56D9] w-16 h-16 rounded-full items-center justify-center shadow-lg ${selectedIsPast ? "opacity-40" : ""}`}
       >
         <Plus size={36} color="#fff" />
       </TouchableOpacity>

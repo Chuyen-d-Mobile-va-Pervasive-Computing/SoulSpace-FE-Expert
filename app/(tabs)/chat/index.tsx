@@ -18,6 +18,18 @@ export default function ChatScreen() {
   const [chats, setChats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const formatMessageTime = (ts: string | number | undefined) => {
+    try {
+      if (!ts) return "";
+      const d = new Date(ts);
+      // Adjust by +7 hours to correct server/client offset
+      d.setHours(d.getHours() + 7);
+      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    } catch (e) {
+      return "";
+    }
+  };
+
   useEffect(() => {
     let alive = true;
 
@@ -122,10 +134,7 @@ export default function ChatScreen() {
               {/* RIGHT */}
               <View className="items-end ml-2">
                 <Text className="text-[12px] text-gray-500 mb-2">
-                  {new Date(item.last_message_at).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {formatMessageTime(item.last_message_at)}
                 </Text>
 
                 {unreadCount > 0 && (
