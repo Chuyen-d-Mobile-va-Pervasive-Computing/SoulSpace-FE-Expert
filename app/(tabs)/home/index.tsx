@@ -1,12 +1,13 @@
 import Decor from "@/assets/images/decor.svg";
 import Logo from "@/assets/images/logo.svg";
-import { getExpertDashboard } from "@/lib/api";
+import { getExpertDashboard, getMyExpertProfile } from "@/lib/api";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import { Bell, Settings } from "lucide-react-native";
+import { Settings } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -22,6 +23,7 @@ export default function HomeScreen() {
 
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<any>(null);
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -37,6 +39,22 @@ export default function HomeScreen() {
 
   useEffect(() => {
     loadDashboard();
+    // load expert profile for header avatar
+    let mounted = true;
+    const loadProfile = async () => {
+      try {
+        const res = await getMyExpertProfile();
+        if (mounted) setProfile(res);
+      } catch (err) {
+        // ignore
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      mounted = false;
+    };
   }, [loadDashboard]);
 
   // Reload dashboard whenever this screen gains focus (e.g., navigating from other tabs)
@@ -65,9 +83,19 @@ export default function HomeScreen() {
           </Text>
         </View>
         <View className="flex-row items-center gap-4">
-          <Bell strokeWidth={1.5} />
           <TouchableOpacity onPress={() => router.push("/setting")}>
-            <Settings strokeWidth={1.5} />
+            {profile &&
+            (profile.avatar_url || profile.avatarUrl || profile.avatar) ? (
+              <Image
+                source={{
+                  uri:
+                    profile.avatar_url || profile.avatarUrl || profile.avatar,
+                }}
+                className="w-10 h-10 rounded-full"
+              />
+            ) : (
+              <Settings strokeWidth={1.5} />
+            )}
           </TouchableOpacity>
         </View>
       </View>

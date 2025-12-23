@@ -17,6 +17,7 @@ import {
   getMyExpertProfile,
   updateExpertProfile,
   uploadExpertAvatar,
+  uploadExpertCertificate,
 } from "@/lib/api";
 
 export default function Profile() {
@@ -33,6 +34,7 @@ export default function Profile() {
   const [clinic_address, setClinicAddress] = useState("");
   const [years_of_experience, setYearsOfExperience] = useState("");
   const [avatar_url, setAvatarUrl] = useState("");
+  const [certificate_url, setCertificateUrl] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
 
   useFocusEffect(
@@ -53,6 +55,9 @@ export default function Profile() {
       setClinicAddress(res.clinic_address || "");
       setYearsOfExperience(String(res.years_of_experience || ""));
       setAvatarUrl(res.avatar_url ? `${res.avatar_url}?t=${Date.now()}` : "");
+      setCertificateUrl(
+        res.certificate_url ? `${res.certificate_url}?t=${Date.now()}` : ""
+      );
     } catch (e: any) {
       setErrorMessage(e.message || "Failed to load profile.");
     }
@@ -89,6 +94,37 @@ export default function Profile() {
     }
   };
 
+  const pickCertificate = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (result.canceled) return;
+
+    const localUri = result.assets[0].uri;
+
+    // Preview ngay
+    setCertificateUrl(localUri);
+
+    try {
+      const uploadRes = await uploadExpertCertificate(localUri);
+      const cleanUrl = uploadRes.url;
+
+      if (!cleanUrl) throw new Error("Upload certificate failed");
+
+      setCertificateUrl(`${cleanUrl}?t=${Date.now()}`);
+
+      await updateExpertProfile({
+        certificate_url: cleanUrl,
+      });
+    } catch (e: any) {
+      setErrorMessage(e.message || "Upload certificate failed.");
+    }
+  };
+
   const handleSave = async () => {
     if (!full_name || !phone) {
       setErrorMessage("Please fill required fields.");
@@ -107,6 +143,7 @@ export default function Profile() {
         clinic_name,
         clinic_address,
         years_of_experience: Number(years_of_experience),
+        certificate_url: certificate_url ? certificate_url.split("?")[0] : "",
       });
 
       // ✅ SUCCESS → popup native
@@ -140,7 +177,7 @@ export default function Profile() {
             />
 
             <TouchableOpacity onPress={pickAvatar} className="mt-3">
-              <Text className="text-[#7F56D9] italic text-sm">
+              <Text className="text-[#7F56D9] font-[Poppins-Italic] text-[14px]">
                 Change avatar
               </Text>
             </TouchableOpacity>
@@ -167,7 +204,7 @@ export default function Profile() {
             value={bio}
             onChangeText={setBio}
             multiline
-            height="h-24"
+            height="h-36"
           />
           <Input
             label="Clinic name"
@@ -185,6 +222,21 @@ export default function Profile() {
             onChangeText={setYearsOfExperience}
             keyboardType="numeric"
           />
+
+          {/* CERTIFICATE */}
+          <View className="items-center mb-8">
+            <Image
+              source={certificate_url ? { uri: certificate_url } : undefined}
+              className="w-full h-80 bg-[#EEEEEE]"
+              resizeMode="contain"
+            />
+
+            <TouchableOpacity onPress={pickCertificate} className="mt-3">
+              <Text className="text-[#7F56D9] font-[Poppins-Italic] text-[14px]">
+                Change certificate
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           {/* SAVE */}
           <TouchableOpacity
@@ -246,7 +298,7 @@ function Input({
 }) {
   return (
     <View className="mb-5">
-      <Text className="mb-2 text-sm font-[Poppins-SemiBold] text-[#374151]">
+      <Text className="mb-2 text-[14px] font-[Poppins-SemiBold] text-[#374151]">
         {label}
       </Text>
       <TextInput

@@ -367,35 +367,37 @@ export default function ArticleDetail() {
           )}
 
           {/* LIKE & COMMENT */}
-          <View className="flex-row items-center mt-6 border-t border-gray-100 pt-4">
-            <View className="flex-row items-center mr-6">
-              <TouchableOpacity onPress={handleToggleLike} className="mr-2">
-                <Heart
-                  size={20}
-                  color={post.is_liked ? "#7F56D9" : "#B4B4B4"}
-                />
-              </TouchableOpacity>
+          {!isPendingExpert && (
+            <View className="flex-row items-center mt-6 border-t border-gray-100 pt-4">
+              <View className="flex-row items-center mr-6">
+                <TouchableOpacity onPress={handleToggleLike} className="mr-2">
+                  <Heart
+                    size={20}
+                    color={post.is_liked ? "#7F56D9" : "#B4B4B4"}
+                  />
+                </TouchableOpacity>
 
-              <TouchableOpacity onPress={handleShowLikes}>
+                <TouchableOpacity onPress={handleShowLikes}>
+                  <Text className="ml-2 font-[Poppins-Medium]">
+                    {post.like_count}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <View className="flex-row items-center">
+                <MessageCircle size={20} color="#7F56D9" />
                 <Text className="ml-2 font-[Poppins-Medium]">
-                  {post.like_count}
+                  {post.comment_count}
                 </Text>
-              </TouchableOpacity>
+              </View>
             </View>
-
-            <View className="flex-row items-center">
-              <MessageCircle size={20} color="#7F56D9" />
-              <Text className="ml-2 font-[Poppins-Medium]">
-                {post.comment_count}
-              </Text>
-            </View>
-          </View>
+          )}
 
           {/* LIKES LIST: shown in modal when `showLikes` is true */}
           {/* keep the existing trigger (handleShowLikes) on the count */}
 
           {/* COMMENTS */}
-          {comments.length > 0 && (
+          {!isPendingExpert && comments.length > 0 && (
             <View className="mt-8">
               <Text className="font-[Poppins-SemiBold] mb-3">Comments</Text>
 
@@ -427,25 +429,27 @@ export default function ArticleDetail() {
           )}
 
           {/* Comment input (allow for expert_article and user_post) */}
-          <View className="mt-6 bg-white rounded-xl p-3 shadow-sm">
-            <TextInput
-              value={commentText}
-              onChangeText={setCommentText}
-              placeholder="Write a comment..."
-              multiline
-              className="text-gray-800 font-[Poppins-Regular]"
-            />
+          {!isPendingExpert && (
+            <View className="mt-6 bg-white rounded-xl p-3 shadow-sm">
+              <TextInput
+                value={commentText}
+                onChangeText={setCommentText}
+                placeholder="Write a comment..."
+                multiline
+                className="text-gray-800 font-[Poppins-Regular]"
+              />
 
-            <TouchableOpacity
-              onPress={handleSubmitComment}
-              disabled={submitting}
-              className="mt-3 bg-[#7F56D9] py-2 rounded-lg"
-            >
-              <Text className="text-center text-white font-[Poppins-SemiBold]">
-                {submitting ? "Posting..." : "Post Comment"}
-              </Text>
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity
+                onPress={handleSubmitComment}
+                disabled={submitting}
+                className="mt-3 bg-[#7F56D9] py-2 rounded-lg"
+              >
+                <Text className="text-center text-white font-[Poppins-SemiBold]">
+                  {submitting ? "Posting..." : "Post Comment"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* DELETE POST (pending expert only) */}
           {isPendingExpert && (
@@ -464,51 +468,56 @@ export default function ArticleDetail() {
         </ScrollView>
 
         {/* Likes Modal (popup) */}
-        <Modal
-          visible={showLikes}
-          transparent={true}
-          onRequestClose={() => setShowLikes(false)}
-        >
-          <View className="flex-1 bg-[rgba(0,0,0,0.5)] justify-center items-center px-5">
-            <View className="w-full max-h-[70vh] bg-white rounded-lg p-4">
-              <Text className="font-[Poppins-SemiBold] text-[16px]">
-                Liked by
-              </Text>
-
-              <ScrollView showsVerticalScrollIndicator={false} className="mt-2">
-                {likes.length === 0 ? (
-                  <Text className="font-[Poppins-Italic] text-[14px] mt-4 text-[#6B7280]">
-                    No likes yet
-                  </Text>
-                ) : (
-                  likes.map((u) => (
-                    <View
-                      key={u.user_id}
-                      className="flex-row mt-4 items-center gap-2"
-                    >
-                      <Image
-                        source={{ uri: u.avatar_url }}
-                        className="w-10 h-10 rounded-full mr-3"
-                      />
-                      <Text className="font-[Poppins-Regular] text-[16px]">
-                        {u.username}
-                      </Text>
-                    </View>
-                  ))
-                )}
-              </ScrollView>
-
-              <TouchableOpacity
-                onPress={() => setShowLikes(false)}
-                className="self-center bg-[#7F56D9] px-4 py-2 rounded-lg mt-3"
-              >
-                <Text className="text-white font-[Poppins-SemiBold] text-[14px] text-center">
-                  Close
+        {!isPendingExpert && (
+          <Modal
+            visible={showLikes}
+            transparent={true}
+            onRequestClose={() => setShowLikes(false)}
+          >
+            <View className="flex-1 bg-[rgba(0,0,0,0.5)] justify-center items-center px-5">
+              <View className="w-full max-h-[70vh] bg-white rounded-lg p-4">
+                <Text className="font-[Poppins-SemiBold] text-[16px]">
+                  Liked by
                 </Text>
-              </TouchableOpacity>
+
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  className="mt-2"
+                >
+                  {likes.length === 0 ? (
+                    <Text className="font-[Poppins-Italic] text-[14px] mt-4 text-[#6B7280]">
+                      No likes yet
+                    </Text>
+                  ) : (
+                    likes.map((u) => (
+                      <View
+                        key={u.user_id}
+                        className="flex-row mt-4 items-center gap-2"
+                      >
+                        <Image
+                          source={{ uri: u.avatar_url }}
+                          className="w-10 h-10 rounded-full mr-3"
+                        />
+                        <Text className="font-[Poppins-Regular] text-[16px]">
+                          {u.username}
+                        </Text>
+                      </View>
+                    ))
+                  )}
+                </ScrollView>
+
+                <TouchableOpacity
+                  onPress={() => setShowLikes(false)}
+                  className="self-center bg-[#7F56D9] px-4 py-2 rounded-lg mt-3"
+                >
+                  <Text className="text-white font-[Poppins-SemiBold] text-[14px] text-center">
+                    Close
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        </Modal>
+          </Modal>
+        )}
 
         {/* Generic Info/Confirm Popup */}
         <Modal

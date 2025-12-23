@@ -398,6 +398,7 @@ export const updateExpertProfile = (payload: {
   clinic_address?: string;
   consultation_price?: number;
   years_of_experience?: number;
+  certificate_url?: string;
 }) =>
   api("/api/v1/auth/expert/profile", {
     method: "PATCH",
