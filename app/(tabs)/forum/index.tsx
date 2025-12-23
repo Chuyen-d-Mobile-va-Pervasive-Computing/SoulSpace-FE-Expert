@@ -635,29 +635,7 @@ export default function ForumScreen() {
                       resizeMode="contain"
                     />
                   )}
-                  <View className="flex-row items-center mt-4  pt-3">
-                    {/* LIKE */}
-                    <TouchableOpacity
-                      className="flex-row items-center mr-6"
-                      onPress={() => handleToggleLikeInArticles(item)}
-                    >
-                      <Heart
-                        size={18}
-                        color={item.is_liked ? "#7F56D9" : "#B4B4B4"}
-                      />
-                      <Text className="ml-2 text-sm text-gray-700 font-[Poppins-Medium]">
-                        {item.like_count}
-                      </Text>
-                    </TouchableOpacity>
-
-                    {/* COMMENT */}
-                    <View className="flex-row items-center">
-                      <MessageCircle size={18} color="#7F56D9" />
-                      <Text className="ml-2 text-sm text-gray-700 font-[Poppins-Medium]">
-                        {item.comment_count}
-                      </Text>
-                    </View>
-                  </View>
+                  {/* like/comment intentionally hidden in History tab */}
                 </View>
               </TouchableOpacity>
             ))}
