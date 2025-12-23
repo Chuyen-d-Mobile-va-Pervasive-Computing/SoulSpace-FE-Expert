@@ -6,7 +6,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFonts } from "expo-font";
 import { useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { ChevronLeft, Eye, EyeOff } from "lucide-react-native";
+import { Eye, EyeOff } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -105,16 +105,6 @@ export default function LoginScreen() {
           <SafeAreaView className="flex-1 bg-white" onLayout={onLayoutRootView}>
             {/* Header */}
             <View className="bg-[#B5A2E9] rounded-b-[70%] pb-[20%] -mx-40 pl-40 pr-40 pt-20">
-              {/* Back */}
-              <View className="px-4">
-                <TouchableOpacity
-                  onPress={() => router.back()}
-                  className="w-12 h-12 bg-white rounded-[10px] items-center justify-center"
-                >
-                  <ChevronLeft size={30} color="#000000" />
-                </TouchableOpacity>
-              </View>
-
               <View className="w-full">
                 {/* Title */}
                 <View className="px-6 mt-24">
