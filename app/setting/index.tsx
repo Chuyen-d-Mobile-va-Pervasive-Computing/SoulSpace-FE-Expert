@@ -42,7 +42,7 @@ export default function SettingsScreen() {
       {/* Heading */}
       <View className="w-full relative flex-row items-center justify-center py-4 px-4 border-b border-gray-200 bg-[#FAF9FF] mt-8">
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => router.push("/(tabs)/home")}
           className="absolute left-4"
           accessibilityLabel="Back"
         >

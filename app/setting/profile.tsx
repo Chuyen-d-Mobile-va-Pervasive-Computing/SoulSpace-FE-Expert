@@ -1,4 +1,3 @@
-import Heading from "@/components/Heading";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
@@ -19,6 +18,7 @@ import {
   uploadExpertAvatar,
   uploadExpertCertificate,
 } from "@/lib/api";
+import { ArrowLeft } from "lucide-react-native";
 
 export default function Profile() {
   const router = useRouter();
@@ -157,7 +157,19 @@ export default function Profile() {
 
   return (
     <View className="flex-1 bg-[#FAF9FF]">
-      <Heading title="My Profile" />
+      {/* Heading */}
+      <View className="w-full relative flex-row items-center justify-center py-4 px-4 border-b border-gray-200 bg-[#FAF9FF] mt-8">
+        <TouchableOpacity
+          onPress={() => router.push("/setting")}
+          className="absolute left-4"
+          accessibilityLabel="Back"
+        >
+          <ArrowLeft width={40} height={30} />
+        </TouchableOpacity>
+        <Text className="text-2xl font-[Poppins-Bold] text-center">
+          Account
+        </Text>
+      </View>
 
       <CustomAlert
         message={errorMessage}

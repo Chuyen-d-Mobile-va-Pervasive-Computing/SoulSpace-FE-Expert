@@ -1,5 +1,5 @@
-import Heading from "@/components/Heading";
 import { router } from "expo-router";
+import { ArrowLeft } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Modal, Text, TextInput, TouchableOpacity, View } from "react-native";
 
@@ -50,7 +50,19 @@ export default function ChangeAccount() {
 
   return (
     <View className="flex-1 bg-[#FAF9FF]">
-      <Heading title="Change Account" />
+      {/* Heading */}
+      <View className="w-full relative flex-row items-center justify-center py-4 px-4 border-b border-gray-200 bg-[#FAF9FF] mt-8">
+        <TouchableOpacity
+          onPress={() => router.push("/setting")}
+          className="absolute left-4"
+          accessibilityLabel="Back"
+        >
+          <ArrowLeft width={40} height={30} />
+        </TouchableOpacity>
+        <Text className="text-2xl font-[Poppins-Bold] text-center">
+          Username
+        </Text>
+      </View>
 
       <View className="py-2 px-4 gap-1">
         {/* USERNAME INPUT */}
